@@ -1,6 +1,7 @@
 package org.quartz.spring.boot;
 
 import com.mongodb.client.MongoClient;
+import org.quartz.SchedulerConfigException;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerSignaler;
 
@@ -8,7 +9,8 @@ import org.quartz.spi.SchedulerSignaler;
 public class SpringMongoJobStore extends org.quartz.impl.mongodb.MongoJobStore {
 
   @Override
-  public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler) {
+  public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler)
+      throws SchedulerConfigException {
     if (getMongoClient() == null) {
       MongoClient shared = QuartzMongoClientHolder.get();
       if (shared != null) {

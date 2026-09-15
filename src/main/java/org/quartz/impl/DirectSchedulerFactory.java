@@ -63,10 +63,10 @@ import org.slf4j.LoggerFactory;
  * DirectSchedulerFactory.getInstance().getScheduler("My Quartz Scheduler").start();
  * </pre>
  *
- * <p>You can also use MongoJobStore instead of the RAMJobStore:
+ * <p>You can also use {@link org.quartz.impl.mongodb.MongoJobStore} instead of {@link RAMJobStore}:
  *
  * <pre>
- *  MongoJobStore mongoJobStore = new MongoJobStore();
+ *  org.quartz.impl.mongodb.MongoJobStore mongoJobStore = new org.quartz.impl.mongodb.MongoJobStore();
  *  mongoJobStore.setMongoUri("mongodb://localhost:27017");
  *  mongoJobStore.setDbName("quartz");
  *  mongoJobStore.setInstanceId("My Instance");

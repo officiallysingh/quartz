@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.jspecify.annotations.NonNull;
 import org.quartz.Calendar;
 import org.quartz.JobDetail;

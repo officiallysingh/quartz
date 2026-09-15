@@ -1,4 +1,4 @@
-package org.quartz.simpl;
+package org.quartz.impl.mongodb;
 
 import java.util.HashMap;
 import java.util.Map;

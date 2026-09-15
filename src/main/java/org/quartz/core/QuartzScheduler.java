@@ -704,13 +704,13 @@ public class QuartzScheduler {
       JobDetail job = e.getKey();
       if (job
           == null) // there can be one of these (for adding a bulk set of triggers for preexisting
-                   // jobs)
-      continue;
+        // jobs)
+        continue;
       Set<? extends Trigger> triggers = e.getValue();
       if (triggers
           == null) // this is possible because the job may be durable, and not yet be having
-                   // triggers
-      continue;
+        // triggers
+        continue;
       for (Trigger trigger : triggers) {
         OperableTrigger opt = (OperableTrigger) trigger;
         opt.setJobKey(job.getKey());

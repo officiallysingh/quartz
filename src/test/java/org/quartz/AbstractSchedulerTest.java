@@ -234,7 +234,7 @@ public abstract class AbstractSchedulerTest {
         2,
         jobKeys.size(),
         "Number of jobs expected in 'g1' group was 1 "); // job should have been deleted also,
-                                                         // because it is non-durable
+    // because it is non-durable
     assertEquals(2, triggerKeys.size(), "Number of triggers expected in 'g1' group was 1 ");
 
     assertTrue(
@@ -248,7 +248,7 @@ public abstract class AbstractSchedulerTest {
         1,
         jobKeys.size(),
         "Number of jobs expected in default group was 1 "); // job should have been left in place,
-                                                            // because it is non-durable
+    // because it is non-durable
     assertEquals(0, triggerKeys.size(), "Number of triggers expected in default group was 0 ");
 
     sched.shutdown(true);
@@ -383,9 +383,9 @@ public abstract class AbstractSchedulerTest {
     assertTrue(
         (fTime - sTime < 7000L),
         "Immediate trigger did not fire within a reasonable amount of time."); // This is
-                                                                               // dangerously
-                                                                               // subjective!  but
-                                                                               // what else to do?
+    // dangerously
+    // subjective!  but
+    // what else to do?
   }
 
   @Test
@@ -420,9 +420,9 @@ public abstract class AbstractSchedulerTest {
     assertTrue(
         (fTime - sTime < 7000L),
         "Immediate trigger did not fire within a reasonable amount of time."); // This is
-                                                                               // dangerously
-                                                                               // subjective!  but
-                                                                               // what else to do?
+    // dangerously
+    // subjective!  but
+    // what else to do?
   }
 
   @Test
@@ -452,9 +452,9 @@ public abstract class AbstractSchedulerTest {
     assertTrue(
         (fTime - sTime < 7000L),
         "Immediate trigger did not fire within a reasonable amount of time."); // This is
-                                                                               // dangerously
-                                                                               // subjective!  but
-                                                                               // what else to do?
+    // dangerously
+    // subjective!  but
+    // what else to do?
   }
 
   @Test

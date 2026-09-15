@@ -56,18 +56,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class implements a <code>{@link org.quartz.spi.JobStore}</code> that utilizes RAM as its
- * storage device.
+ * In-memory {@link JobStore}. Persistent MongoDB storage is a sibling implementation ({@link
+ * org.quartz.impl.mongodb.MongoJobStore}) that composes a {@code RAMJobStore} rather than
+ * subclassing it.
  *
- * <p>As you should know, the ramification of this is that access is extremely fast, but the data is
- * completely volatile - therefore this <code>JobStore</code> should not be used if true persistence
- * between program shutdowns is required.
+ * <p>Access is extremely fast, but the data is volatile — do not use this store if persistence
+ * across process restarts is required.
  *
  * @author James House
  * @author Sharada Jambula
  * @author Eric Mueller
  */
 public class RAMJobStore implements JobStore {
+
+  /** Trigger waiting to be acquired; same code persisted by MongoDB. */
+  public static final int TRIGGER_STATE_WAITING = TriggerWrapper.STATE_WAITING;
+
+  /** Trigger reserved by a scheduler instance. */
+  public static final int TRIGGER_STATE_ACQUIRED = TriggerWrapper.STATE_ACQUIRED;
+
+  /** Job payload plus RAM trigger-state code used when snapshotting for persistence. */
+  public record TriggerSnapshot(OperableTrigger trigger, int state) {}
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1642,6 +1651,90 @@ public class RAMJobStore implements JobStore {
 
   public boolean isClustered() {
     return false;
+  }
+
+  public List<JobDetail> exportJobs() {
+    synchronized (lock) {
+      List<JobDetail> jobs = new ArrayList<>(jobsByKey.size());
+      for (JobWrapper jw : jobsByKey.values()) {
+        jobs.add(jw.jobDetail);
+      }
+      return jobs;
+    }
+  }
+
+  public List<TriggerSnapshot> exportTriggers() {
+    synchronized (lock) {
+      List<TriggerSnapshot> snaps = new ArrayList<>(triggersByKey.size());
+      for (TriggerWrapper tw : triggersByKey.values()) {
+        snaps.add(new TriggerSnapshot(tw.trigger, tw.state));
+      }
+      return snaps;
+    }
+  }
+
+  public Map<String, Calendar> exportCalendars() {
+    synchronized (lock) {
+      return new HashMap<>(calendarsByName);
+    }
+  }
+
+  public Set<String> exportPausedTriggerGroups() {
+    synchronized (lock) {
+      return new HashSet<>(pausedTriggerGroups);
+    }
+  }
+
+  public Set<String> exportPausedJobGroups() {
+    synchronized (lock) {
+      return new HashSet<>(pausedJobGroups);
+    }
+  }
+
+  /** Replace all in-memory scheduling data. Used by MongoDB job store when reloading a snapshot. */
+  public void replaceAllSchedulingData(
+      List<JobDetail> jobs,
+      List<TriggerSnapshot> triggerSnapshots,
+      Map<String, Calendar> calendars,
+      Set<String> pausedTriggerGroupNames,
+      Set<String> pausedJobGroupNames)
+      throws JobPersistenceException {
+    synchronized (lock) {
+      clearAllSchedulingData();
+      pausedJobGroups.clear();
+      pausedTriggerGroups.clear();
+      blockedJobs.clear();
+      for (JobDetail detail : jobs) {
+        storeJob(detail, true);
+      }
+      for (TriggerSnapshot snap : triggerSnapshots) {
+        storeTrigger(snap.trigger(), true);
+        TriggerWrapper tw = triggersByKey.get(snap.trigger().getKey());
+        if (tw != null) {
+          tw.state = snap.state();
+          if (snap.state() != TriggerWrapper.STATE_WAITING) {
+            timeTriggers.remove(tw);
+          }
+        }
+      }
+      for (Entry<String, Calendar> e : calendars.entrySet()) {
+        storeCalendar(e.getKey(), e.getValue(), true, false);
+      }
+      pausedTriggerGroups.addAll(pausedTriggerGroupNames);
+      pausedJobGroups.addAll(pausedJobGroupNames);
+    }
+  }
+
+  /** Move acquired triggers back to waiting (cluster failover / orphan recovery). */
+  public void recoverAcquiredTriggers() {
+    synchronized (lock) {
+      for (TriggerWrapper tw : List.copyOf(triggersByKey.values())) {
+        if (tw.state == TriggerWrapper.STATE_ACQUIRED) {
+          tw.state = TriggerWrapper.STATE_WAITING;
+          timeTriggers.add(tw);
+        }
+      }
+    }
   }
 }
 

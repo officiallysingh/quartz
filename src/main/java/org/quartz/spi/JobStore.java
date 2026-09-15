@@ -44,6 +44,9 @@ import org.quartz.impl.matchers.GroupMatcher;
  * <p>Storage of <code>Job</code> s and <code>Trigger</code> s should be keyed on the combination of
  * their name and group for uniqueness.
  *
+ * <p>This library ships two implementations: {@link org.quartz.simpl.RAMJobStore} (volatile) and
+ * {@link org.quartz.impl.mongodb.MongoJobStore} (persistent / clustered).
+ *
  * @see org.quartz.core.QuartzScheduler
  * @see org.quartz.Trigger
  * @see org.quartz.Job

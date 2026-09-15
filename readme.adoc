@@ -6,7 +6,7 @@ for scheduling and executing jobs.
 == This fork (3.0)
 
 * Requires **Java 26**.
-* Default store is still in-memory `RAMJobStore`.
+* Both `RAMJobStore` and `MongoJobStore` implement `org.quartz.spi.JobStore` as siblings (Mongo composes RAM; it does not extend it).
 * Persistent store is **MongoDB only** (`org.quartz.impl.mongodb.MongoJobStore`). JDBC / RDBMS support has been removed.
 * Public fire times use `java.time.Instant` (not `java.util.Date`). `DateBuilder` is the DSL helper that produces those instants (`futureDate`, `tomorrowAt`, `evenMinuteDate`, …) and takes `ZoneId`, not `TimeZone`.
 * Clustering needs a MongoDB replica set and NTP-synced clocks.

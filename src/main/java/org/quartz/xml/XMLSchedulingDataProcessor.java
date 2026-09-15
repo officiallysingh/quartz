@@ -1090,7 +1090,7 @@ public class XMLSchedulingDataProcessor implements ErrorHandler {
             triggersOfJob != null
                 && !triggersOfJob
                     .isEmpty()); // add the job regardless is durable or not b/c we have trigger to
-                                 // add
+        // add
       } else {
         boolean addJobWithFirstSchedule = true;
 
