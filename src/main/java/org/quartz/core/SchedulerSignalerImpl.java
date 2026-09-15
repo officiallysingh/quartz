@@ -18,12 +18,11 @@
 
 package org.quartz.core;
 
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.spi.SchedulerSignaler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An interface to be used by <code>JobStore</code> instances in order to communicate signals back
@@ -31,9 +30,8 @@ import org.slf4j.LoggerFactory;
  *
  * @author jhouse
  */
+@Slf4j
 public class SchedulerSignalerImpl implements SchedulerSignaler {
-
-  final Logger log = LoggerFactory.getLogger(SchedulerSignalerImpl.class);
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

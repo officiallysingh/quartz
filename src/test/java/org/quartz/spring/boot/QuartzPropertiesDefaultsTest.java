@@ -91,4 +91,25 @@ class QuartzPropertiesDefaultsTest {
             properties, JobStoreType.MONGODB, null, environment);
     assertEquals("fromuri", quartz.getProperty("org.quartz.jobStore.dbName"));
   }
+
+  @Test
+  void memoryStoreUsesSimpleThreadPoolByDefault() {
+    QuartzProperties properties = new QuartzProperties();
+    var quartz =
+        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    assertEquals(
+        org.quartz.simpl.SimpleThreadPool.class.getName(),
+        quartz.getProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS));
+  }
+
+  @Test
+  void virtualThreadPoolPropertySwitchesClass() {
+    QuartzProperties properties = new QuartzProperties();
+    properties.getThreadPool().setVirtual(true);
+    var quartz =
+        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    assertEquals(
+        org.quartz.simpl.VirtualThreadPool.class.getName(),
+        quartz.getProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS));
+  }
 }

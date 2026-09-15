@@ -11,6 +11,7 @@ import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.simpl.RAMJobStore;
 import org.quartz.simpl.SimpleThreadPool;
+import org.quartz.simpl.VirtualThreadPool;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -83,14 +84,19 @@ public class QuartzAutoConfiguration {
       Environment environment) {
     Properties quartz = new Properties();
     quartz.setProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME, properties.getSchedulerName());
-    quartz.setProperty(
-        StdSchedulerFactory.PROP_THREAD_POOL_CLASS, SimpleThreadPool.class.getName());
+    String threadPoolClass =
+        properties.getThreadPool().isVirtual()
+            ? VirtualThreadPool.class.getName()
+            : SimpleThreadPool.class.getName();
+    quartz.setProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS, threadPoolClass);
     quartz.setProperty(
         "org.quartz.threadPool.threadCount",
         Integer.toString(properties.getThreadPool().getThreadCount()));
-    quartz.setProperty(
-        "org.quartz.threadPool.threadPriority",
-        Integer.toString(properties.getThreadPool().getThreadPriority()));
+    if (!properties.getThreadPool().isVirtual()) {
+      quartz.setProperty(
+          "org.quartz.threadPool.threadPriority",
+          Integer.toString(properties.getThreadPool().getThreadPriority()));
+    }
     quartz.setProperty("org.quartz.jobStore.misfireThreshold", "60000");
 
     boolean clustered = storeType == JobStoreType.MONGODB && properties.getMongodb().isClustered();

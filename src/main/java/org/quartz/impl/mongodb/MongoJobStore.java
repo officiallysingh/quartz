@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.quartz.Calendar;
@@ -42,8 +43,6 @@ import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Persistent, cluster-capable {@link JobStore} backed by MongoDB.
@@ -57,13 +56,13 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Configure: {@code org.quartz.jobStore.class = org.quartz.impl.mongodb.MongoJobStore}
  */
+@Slf4j
 public class MongoJobStore implements JobStore {
 
   public static final String DEFAULT_URI = "mongodb://localhost:27017";
   public static final String DEFAULT_DB = "quartz";
   public static final String DEFAULT_COLLECTION_PREFIX = "qrtz_";
 
-  private final Logger log = LoggerFactory.getLogger(getClass());
   private final RAMJobStore memory = new RAMJobStore();
 
   private String mongoUri = DEFAULT_URI;

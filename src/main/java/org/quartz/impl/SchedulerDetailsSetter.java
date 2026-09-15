@@ -19,9 +19,8 @@ package org.quartz.impl;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.SchedulerException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This utility calls methods reflectively on the given objects even though the methods are likely
@@ -31,9 +30,8 @@ import org.slf4j.LoggerFactory;
  *
  * @author teck
  */
+@Slf4j
 class SchedulerDetailsSetter {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerDetailsSetter.class);
 
   private SchedulerDetailsSetter() {
     //
@@ -51,19 +49,18 @@ class SchedulerDetailsSetter {
     try {
       setter = target.getClass().getMethod(method, String.class);
     } catch (SecurityException e) {
-      LOGGER.error("A SecurityException occurred: {}", e.getMessage(), e);
+      log.error("A SecurityException occurred: {}", e.getMessage(), e);
       return;
     } catch (NoSuchMethodException e) {
       // This probably won't happen since the interface has the method
-      LOGGER.warn(
-          "{} does not contain public method {}(String)", target.getClass().getName(), method);
+      log.warn("{} does not contain public method {}(String)", target.getClass().getName(), method);
       return;
     }
 
     if (Modifier.isAbstract(setter.getModifiers())) {
       // expected if method not implemented (but is present on
       // interface)
-      LOGGER.warn("{} does not implement {}(String)", target.getClass().getName(), method);
+      log.warn("{} does not implement {}(String)", target.getClass().getName(), method);
       return;
     }
 

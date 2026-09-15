@@ -18,6 +18,7 @@
 
 package org.quartz.core;
 
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
@@ -30,7 +31,6 @@ import org.quartz.listeners.SchedulerListenerSupport;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.TriggerFiredBundle;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * JobRunShell instances are responsible for providing the 'safe' environment for <code>Job</code> s
@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
  * @see org.quartz.Trigger
  * @author James House
  */
+@Slf4j
 public class JobRunShell extends SchedulerListenerSupport implements Runnable {
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -67,8 +68,6 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
   protected Scheduler scheduler;
 
   protected volatile boolean shutdownRequested = false;
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

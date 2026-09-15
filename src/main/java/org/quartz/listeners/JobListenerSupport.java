@@ -16,11 +16,11 @@
  */
 package org.quartz.listeners;
 
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobListener;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A helpful abstract base class for implementors of <code>{@link org.quartz.JobListener}</code>.
@@ -33,8 +33,8 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.quartz.JobListener
  */
+@Slf4j
 public abstract class JobListenerSupport implements JobListener {
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   /**
    * Get the <code>{@link org.slf4j.Logger}</code> for this class's category. This should be used by

@@ -21,6 +21,7 @@ package org.quartz.impl;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerFactory;
@@ -36,7 +37,6 @@ import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A singleton implementation of <code>{@link org.quartz.SchedulerFactory}</code>.
@@ -78,6 +78,7 @@ import org.slf4j.LoggerFactory;
  * @see JobStore
  * @see ThreadPool
  */
+@Slf4j
 public class DirectSchedulerFactory implements SchedulerFactory {
 
   /*
@@ -108,8 +109,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
   private boolean initialized = false;
 
   private static final DirectSchedulerFactory instance = new DirectSchedulerFactory();
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

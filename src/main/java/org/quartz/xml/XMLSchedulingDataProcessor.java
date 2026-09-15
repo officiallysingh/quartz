@@ -53,13 +53,12 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathException;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.MutableTrigger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -81,6 +80,7 @@ import org.xml.sax.SAXParseException;
  * @author Past contributions from pl47ypus
  * @since Quartz 1.8
  */
+@Slf4j
 public class XMLSchedulingDataProcessor implements ErrorHandler {
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -131,8 +131,6 @@ public class XMLSchedulingDataProcessor implements ErrorHandler {
 
   private DocumentBuilder docBuilder = null;
   private XPath xpath = null;
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

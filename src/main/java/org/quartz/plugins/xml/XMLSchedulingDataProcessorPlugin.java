@@ -35,12 +35,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.xml.XMLSchedulingDataProcessor;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is
@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
  * @author Pierre Awaragi
  * @author pl47ypus
  */
+@Slf4j
 public class XMLSchedulingDataProcessorPlugin implements SchedulerPlugin, FileScanListener {
 
   /*
@@ -72,7 +73,6 @@ public class XMLSchedulingDataProcessorPlugin implements SchedulerPlugin, FileSc
 
   private String name;
   private Scheduler scheduler;
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   private boolean failOnFileNotFound = true;
 

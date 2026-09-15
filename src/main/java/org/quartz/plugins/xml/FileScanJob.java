@@ -21,9 +21,8 @@ package org.quartz.plugins.xml;
 import java.io.File;
 import java.net.URL;
 import java.net.URLDecoder;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Inspects a file and compares whether it's "last modified date" has changed since the last time it
@@ -36,6 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 @DisallowConcurrentExecution
 @PersistJobDataAfterExecution
+@Slf4j
 public class FileScanJob implements Job {
 
   /** <code>JobDataMap</code> key with which to specify the name of the file to monitor. */
@@ -60,8 +60,6 @@ public class FileScanJob implements Job {
   public static final String MINIMUM_UPDATE_AGE = "MINIMUM_UPDATE_AGE";
 
   private static final String LAST_MODIFIED_TIME = "LAST_MODIFIED_TIME";
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   public FileScanJob() {}
 

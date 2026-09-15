@@ -22,10 +22,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.SchedulerConfigException;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is class is a simple implementation of a thread pool, based on the <code>
@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
  * @author James House
  * @author Juergen Donnerstag
  */
+@Slf4j
 public class SimpleThreadPool implements ThreadPool {
 
   /*
@@ -73,8 +74,6 @@ public class SimpleThreadPool implements ThreadPool {
   private final LinkedList<WorkerThread> busyWorkers = new LinkedList<>();
 
   private String threadNamePrefix;
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   private String schedulerInstanceName;
 

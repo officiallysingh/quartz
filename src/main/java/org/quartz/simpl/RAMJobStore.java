@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.Calendar;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
@@ -53,7 +54,6 @@ import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredBundle;
 import org.quartz.spi.TriggerFiredResult;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * In-memory {@link JobStore}. Persistent MongoDB storage is a sibling implementation ({@link
@@ -67,6 +67,7 @@ import org.slf4j.LoggerFactory;
  * @author Sharada Jambula
  * @author Eric Mueller
  */
+@Slf4j
 public class RAMJobStore implements JobStore {
 
   /** Trigger waiting to be acquired; same code persisted by MongoDB. */
@@ -113,8 +114,6 @@ public class RAMJobStore implements JobStore {
   protected long misfireThreshold = 5000L;
 
   protected SchedulerSignaler signaler;
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

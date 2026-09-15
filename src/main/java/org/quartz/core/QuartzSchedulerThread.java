@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobPersistenceException;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -31,7 +32,6 @@ import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.TriggerFiredBundle;
 import org.quartz.spi.TriggerFiredResult;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The thread responsible for performing the work of firing <code>{@link Trigger}</code> s that are
@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
  * @see Trigger
  * @author James House
  */
+@Slf4j
 public class QuartzSchedulerThread extends Thread {
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,8 +73,6 @@ public class QuartzSchedulerThread extends Thread {
   private long idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
 
   private int idleWaitVariableness = 7 * 1000;
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

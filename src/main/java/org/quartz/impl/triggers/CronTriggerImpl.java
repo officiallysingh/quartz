@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.CronExpression;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.CronTrigger;
@@ -34,8 +35,6 @@ import org.quartz.Scheduler;
 import org.quartz.Trigger;
 import org.quartz.TriggerUtils;
 import org.quartz.spi.OperableTrigger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A concrete <code>{@link Trigger}</code> that is used to fire a <code>{@link org.quartz.JobDetail}
@@ -44,6 +43,7 @@ import org.slf4j.LoggerFactory;
  * @author Sharada Jambula, James House
  * @author Contributions from Mads Henderson
  */
+@Slf4j
 public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
     implements CronTrigger, CoreTrigger {
 
@@ -62,8 +62,6 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
    * @see java.io.Serializable
    */
   private static final long serialVersionUID = -8644953146451592766L;
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(CronTriggerImpl.class);
 
   protected static final int YEAR_TO_GIVEUP_SCHEDULING_AT = CronExpression.MAX_YEAR;
 
@@ -546,7 +544,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger>
         cb.withMisfireHandlingInstructionIgnoreMisfires();
         break;
       default:
-        LOGGER.warn(
+        log.warn(
             "Unrecognized misfire policy {}. Derived builder will use the default cron trigger behavior (MISFIRE_INSTRUCTION_FIRE_ONCE_NOW)",
             misfireInstruction);
     }

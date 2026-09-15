@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Properties;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobListener;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
@@ -45,6 +46,7 @@ import org.quartz.core.QuartzSchedulerResources;
 import org.quartz.impl.matchers.EverythingMatcher;
 import org.quartz.simpl.RAMJobStore;
 import org.quartz.simpl.SimpleThreadPool;
+import org.quartz.simpl.VirtualThreadPool;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.InstanceIdGenerator;
 import org.quartz.spi.JobFactory;
@@ -54,7 +56,6 @@ import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
 import org.quartz.utils.PropertiesParser;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of <code>{@link org.quartz.SchedulerFactory}</code> that does all of its work
@@ -89,6 +90,7 @@ import org.slf4j.LoggerFactory;
  * @author Anthony Eden
  * @author Mohammad Rezaei
  */
+@Slf4j
 public class StdSchedulerFactory implements SchedulerFactory {
 
   /*
@@ -199,8 +201,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
   private String propSrc = null;
 
   private PropertiesParser cfg;
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   //  private Scheduler scheduler;
 
@@ -892,11 +892,16 @@ public class StdSchedulerFactory implements SchedulerFactory {
       threadExecutor.initialize();
 
       rsrcs.setThreadPool(tp);
-      if (tp instanceof SimpleThreadPool) {
-        if (threadsInheritInitializersClassLoader)
+      if (threadsInheritInitializersClassLoader) {
+        if (tp instanceof SimpleThreadPool) {
           ((SimpleThreadPool) tp)
               .setThreadsInheritContextClassLoaderOfInitializingThread(
                   threadsInheritInitializersClassLoader);
+        } else if (tp instanceof VirtualThreadPool) {
+          ((VirtualThreadPool) tp)
+              .setThreadsInheritContextClassLoaderOfInitializingThread(
+                  threadsInheritInitializersClassLoader);
+        }
       }
       tp.initialize();
       tpInited = true;

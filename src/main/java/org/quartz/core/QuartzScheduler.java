@@ -33,6 +33,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
 import org.quartz.Calendar;
 import org.quartz.InterruptableJob;
 import org.quartz.Job;
@@ -66,7 +67,6 @@ import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.ThreadExecutor;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is the heart of Quartz, an indirect implementation of the <code>{@link org.quartz.Scheduler}
@@ -79,6 +79,7 @@ import org.slf4j.LoggerFactory;
  * @see org.quartz.spi.ThreadPool
  * @author James House
  */
+@Slf4j
 public class QuartzScheduler {
 
   /*
@@ -106,13 +107,11 @@ public class QuartzScheduler {
           if (versionComponents.length > 2) VERSION_ITERATION = versionComponents[2];
           else VERSION_ITERATION = "0";
         } else {
-          (LoggerFactory.getLogger(QuartzScheduler.class))
-              .error("Can't parse Quartz version from quartz-build.properties");
+          log.error("Can't parse Quartz version from quartz-build.properties");
         }
       }
     } catch (Exception e) {
-      (LoggerFactory.getLogger(QuartzScheduler.class))
-          .error("Error loading version info from quartz-build.properties.", e);
+      log.error("Error loading version info from quartz-build.properties.", e);
     }
   }
 
@@ -158,8 +157,6 @@ public class QuartzScheduler {
   private volatile boolean shuttingDown = false;
 
   private Instant initialStart = null;
-
-  private final Logger log = LoggerFactory.getLogger(getClass());
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
