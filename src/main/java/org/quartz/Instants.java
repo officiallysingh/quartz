@@ -32,7 +32,7 @@ public final class Instants {
   }
 
   public static Instant plusMillis(Instant instant, long millis) {
-    return instant.plusMillis(millis);
+    return instant == null ? null : instant.plusMillis(millis);
   }
 
   public static Date toDate(Instant instant) {

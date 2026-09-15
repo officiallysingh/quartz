@@ -248,7 +248,10 @@ public class MongoJobStore implements JobStore {
   }
 
   private void withLock(PersistedOp op) throws JobPersistenceException {
-    boolean locked = obtainLock();
+    if (!obtainLock()) {
+      throw new JobPersistenceException(
+          "Could not obtain MongoDB cluster lock for scheduler '" + instanceName + "'");
+    }
     try {
       reloadFromMongo();
       op.run();
@@ -258,9 +261,7 @@ public class MongoJobStore implements JobStore {
     } catch (RuntimeException e) {
       throw new JobPersistenceException(e.getMessage(), e);
     } finally {
-      if (locked) {
-        releaseLock();
-      }
+      releaseLock();
     }
   }
 
@@ -504,13 +505,7 @@ public class MongoJobStore implements JobStore {
   @Override
   public void storeJob(JobDetail newJob, boolean replaceExisting)
       throws ObjectAlreadyExistsException, JobPersistenceException {
-    try {
-      withLock(() -> memory.storeJob(newJob, replaceExisting));
-    } catch (ObjectAlreadyExistsException e) {
-      throw e;
-    } catch (JobPersistenceException e) {
-      throw new ObjectAlreadyExistsException(e.getMessage());
-    }
+    withLock(() -> memory.storeJob(newJob, replaceExisting));
   }
 
   @Override

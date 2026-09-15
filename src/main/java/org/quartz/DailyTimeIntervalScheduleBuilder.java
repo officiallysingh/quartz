@@ -385,7 +385,7 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
    * @see DailyTimeIntervalTrigger#MISFIRE_INSTRUCTION_FIRE_ONCE_NOW
    */
   public DailyTimeIntervalScheduleBuilder withMisfireHandlingInstructionFireAndProceed() {
-    misfireInstruction = CalendarIntervalTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW;
+    misfireInstruction = DailyTimeIntervalTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW;
     return this;
   }
 

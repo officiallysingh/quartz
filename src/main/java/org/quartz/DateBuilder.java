@@ -763,13 +763,14 @@ public class DateBuilder {
 
   public static void validateMonth(int month) {
     if (month < 1 || month > 12) {
-      throw new IllegalArgumentException("Invalid month (must be >= 1 and <= 12.");
+      throw new IllegalArgumentException("Invalid month (must be >= 1 and <= 12).");
     }
   }
 
   public static void validateYear(int year) {
     if (year < 1970 || year > Year.MAX_VALUE) {
-      throw new IllegalArgumentException("Invalid year (must be >= 0 and <= " + Year.MAX_VALUE);
+      throw new IllegalArgumentException(
+          "Invalid year (must be >= 1970 and <= " + Year.MAX_VALUE + ").");
     }
   }
 }
