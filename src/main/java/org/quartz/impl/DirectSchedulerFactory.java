@@ -263,9 +263,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
       }
     }
 
-    getLog().info("Quartz scheduler '{}", scheduler.getSchedulerName());
-
-    getLog().info("Quartz scheduler version: {}", qs.getVersion());
+    getLog().info("Quartz scheduler '{}'", scheduler.getSchedulerName());
 
     SchedulerRepository schedRep = SchedulerRepository.getInstance();
 

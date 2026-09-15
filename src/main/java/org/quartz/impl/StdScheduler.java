@@ -109,8 +109,7 @@ public class StdScheduler implements Scheduler {
         sched.supportsPersistence(),
         sched.isClustered(),
         sched.getThreadPoolClass(),
-        sched.getThreadPoolSize(),
-        sched.getVersion());
+        sched.getThreadPoolSize());
   }
 
   /** Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>. */

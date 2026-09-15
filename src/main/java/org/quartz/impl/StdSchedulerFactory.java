@@ -958,8 +958,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
       getLog()
           .info("Quartz scheduler '{}' initialized from {}", scheduler.getSchedulerName(), propSrc);
 
-      getLog().info("Quartz scheduler version: {}", qs.getVersion());
-
       // prevents the repository from being garbage collected
       qs.addNoGCObject(schedRep);
 

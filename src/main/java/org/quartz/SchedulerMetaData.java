@@ -65,8 +65,6 @@ public class SchedulerMetaData implements java.io.Serializable {
 
   private final int tpSize;
 
-  private final String version;
-
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    *
@@ -89,8 +87,7 @@ public class SchedulerMetaData implements java.io.Serializable {
       boolean jsPersistent,
       boolean jsClustered,
       Class<?> tpClass,
-      int tpSize,
-      String version) {
+      int tpSize) {
     this.schedName = schedName;
     this.schedInst = schedInst;
     this.schedClass = schedClass;
@@ -105,7 +102,6 @@ public class SchedulerMetaData implements java.io.Serializable {
     this.jsClustered = jsClustered;
     this.tpClass = tpClass;
     this.tpSize = tpSize;
-    this.version = version;
   }
 
   /*
@@ -207,11 +203,6 @@ public class SchedulerMetaData implements java.io.Serializable {
     return tpSize;
   }
 
-  /** Returns the version of Quartz that is running. */
-  public String getVersion() {
-    return version;
-  }
-
   /** Return a simple string representation of this object. */
   @Override
   public String toString() {
@@ -233,9 +224,7 @@ public class SchedulerMetaData implements java.io.Serializable {
    * </pre>
    */
   public String getSummary() throws SchedulerException {
-    StringBuilder str = new StringBuilder("Quartz Scheduler (v");
-    str.append(getVersion());
-    str.append(") '");
+    StringBuilder str = new StringBuilder("Quartz Scheduler '");
 
     str.append(getSchedulerName());
     str.append("' with instanceId '");

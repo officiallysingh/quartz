@@ -20,7 +20,6 @@ package org.quartz.core;
 
 import static org.quartz.TriggerBuilder.*;
 
-import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,7 +28,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -81,39 +79,6 @@ import org.slf4j.Logger;
  */
 @Slf4j
 public class QuartzScheduler {
-
-  /*
-   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   *
-   * Constants.
-   *
-   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   */
-
-  private static String VERSION_MAJOR = "UNKNOWN";
-  private static String VERSION_MINOR = "UNKNOWN";
-  private static String VERSION_ITERATION = "UNKNOWN";
-
-  static {
-    Properties props = new Properties();
-    try (InputStream is = QuartzScheduler.class.getResourceAsStream("quartz-build.properties")) {
-      if (is != null) {
-        props.load(is);
-        String version = props.getProperty("version");
-        if (version != null) {
-          String[] versionComponents = version.split("\\.");
-          VERSION_MAJOR = versionComponents[0];
-          VERSION_MINOR = versionComponents[1];
-          if (versionComponents.length > 2) VERSION_ITERATION = versionComponents[2];
-          else VERSION_ITERATION = "0";
-        } else {
-          log.error("Can't parse Quartz version from quartz-build.properties");
-        }
-      }
-    } catch (Exception e) {
-      log.error("Error loading version info from quartz-build.properties.", e);
-    }
-  }
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -193,7 +158,7 @@ public class QuartzScheduler {
 
     signaler = new SchedulerSignalerImpl(this, this.schedThread);
 
-    getLog().info("Quartz Scheduler v{} created.", getVersion());
+    getLog().info("Quartz Scheduler created.");
   }
 
   public void initialize() throws SchedulerException {
@@ -214,8 +179,7 @@ public class QuartzScheduler {
                 supportsPersistence(),
                 isClustered(),
                 getThreadPoolClass(),
-                getThreadPoolSize(),
-                getVersion()));
+                getThreadPoolSize()));
   }
 
   /*
@@ -225,22 +189,6 @@ public class QuartzScheduler {
    *
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
-
-  public String getVersion() {
-    return getVersionMajor() + "." + getVersionMinor() + "." + getVersionIteration();
-  }
-
-  public static String getVersionMajor() {
-    return VERSION_MAJOR;
-  }
-
-  public static String getVersionMinor() {
-    return VERSION_MINOR;
-  }
-
-  public static String getVersionIteration() {
-    return VERSION_ITERATION;
-  }
 
   public SchedulerSignaler getSchedulerSignaler() {
     return signaler;
