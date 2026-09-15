@@ -26,7 +26,7 @@ import org.quartz.JobKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * <p>
@@ -61,9 +61,9 @@ public class SimpleRecoveryJob implements Job {
 
     // if the job is recovering print a message
     if (context.isRecovering()) {
-      _log.info("SimpleRecoveryJob: " + jobKey + " RECOVERING at " + new Date());
+      _log.info("SimpleRecoveryJob: " + jobKey + " RECOVERING at " + Instant.now());
     } else {
-      _log.info("SimpleRecoveryJob: " + jobKey + " starting at " + new Date());
+      _log.info("SimpleRecoveryJob: " + jobKey + " starting at " + Instant.now());
     }
 
     // delay for ten seconds
@@ -84,7 +84,7 @@ public class SimpleRecoveryJob implements Job {
     count++;
     data.put(COUNT, count);
 
-    _log.info("SimpleRecoveryJob: " + jobKey + " done at " + new Date() + "\n Execution #" + count);
+    _log.info("SimpleRecoveryJob: " + jobKey + " done at " + Instant.now() + "\n Execution #" + count);
 
   }
 

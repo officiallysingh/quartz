@@ -34,7 +34,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * This Example will demonstrate all of the basics of scheduling capabilities of Quartz using Simple Triggers.
@@ -59,7 +59,7 @@ public class SimpleTriggerExample {
     // jobs can be scheduled before sched.start() has been called
 
     // get a "nice round" time a few seconds in the future...
-    Date startTime = DateBuilder.nextGivenSecondDate(null, 15);
+    Instant startTime = DateBuilder.nextGivenSecondDate(null, 15);
 
     // job1 will only fire once at date/time "ts"
     JobDetail job = newJob(SimpleJob.class).withIdentity("job1", "group1").build();
@@ -67,7 +67,7 @@ public class SimpleTriggerExample {
     SimpleTrigger trigger = (SimpleTrigger) newTrigger().withIdentity("trigger1", "group1").startAt(startTime).build();
 
     // schedule it to run!
-    Date ft = sched.scheduleJob(job, trigger);
+    Instant ft = sched.scheduleJob(job, trigger);
     log.info(job.getKey() + " will run at: " + ft + " and repeat: " + trigger.getRepeatCount() + " times, every "
              + trigger.getRepeatInterval() / 1000 + " seconds");
 

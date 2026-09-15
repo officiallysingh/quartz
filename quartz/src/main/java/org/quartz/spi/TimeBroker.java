@@ -18,7 +18,7 @@
 
 package org.quartz.spi;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.quartz.SchedulerConfigException;
 import org.quartz.SchedulerException;
@@ -66,7 +66,7 @@ public interface TimeBroker {
      *           with the error code set to
      *           SchedulerException.ERR_TIME_BROKER_FAILURE
      */
-    Date getCurrentTime() throws SchedulerException;
+    Instant getCurrentTime() throws SchedulerException;
 
     /**
      * <p>

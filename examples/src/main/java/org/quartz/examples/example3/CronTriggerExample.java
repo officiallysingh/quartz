@@ -31,7 +31,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * This Example will demonstrate all of the basics of scheduling capabilities of Quartz using Cron Triggers.
@@ -61,7 +61,7 @@ public class CronTriggerExample {
     CronTrigger trigger = newTrigger().withIdentity("trigger1", "group1").withSchedule(cronSchedule("0/20 * * * * ?"))
         .build();
 
-    Date ft = sched.scheduleJob(job, trigger);
+    Instant ft = sched.scheduleJob(job, trigger);
     log.info(job.getKey() + " has been scheduled to run at: " + ft + " and repeat based on expression: "
              + trigger.getCronExpression());
 

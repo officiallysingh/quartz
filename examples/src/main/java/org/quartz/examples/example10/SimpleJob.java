@@ -18,7 +18,7 @@
  
 package org.quartz.examples.example10;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Set;
 
 import org.quartz.Job;
@@ -62,7 +62,7 @@ public class SimpleJob implements Job {
         // This job simply prints out its job name and the
         // date and time that it is running
         JobKey jobKey = context.getJobDetail().getKey();
-        _log.info("Executing job: " + jobKey + " executing at " + new Date() + ", fired by: " + context.getTrigger().getKey());
+        _log.info("Executing job: " + jobKey + " executing at " + Instant.now() + ", fired by: " + context.getTrigger().getKey());
         
         if(context.getMergedJobDataMap().size() > 0) {
             Set<String> keys = context.getMergedJobDataMap().keySet();

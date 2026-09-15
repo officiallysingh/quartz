@@ -14,3 +14,22 @@ image::https://dev.azure.com/TerracottaCI/quartz/_apis/build/status/quartz-sched
 
 https://www.quartz-scheduler.org/community/contribute.html
 
+== This fork (3.0)
+
+* Requires **Java 26**.
+* Default store is still in-memory `RAMJobStore`.
+* Persistent store is **MongoDB only** (`org.quartz.impl.mongodb.MongoJobStore`). JDBC / RDBMS support has been removed.
+* Public fire times use `java.time.Instant` (not `java.util.Date`). `DateBuilder` is the DSL helper that produces those instants (`futureDate`, `tomorrowAt`, `evenMinuteDate`, …) and takes `ZoneId`, not `TimeZone`.
+* Clustering needs a MongoDB replica set and NTP-synced clocks.
+* Keep this library off `spring-boot-starter-quartz` (that starter still assumes JDBC). Inject Boot's `MongoClient` into `MongoJobStore.setMongoClient(...)` and do not close it from the job store.
+
+Example:
+
+```
+org.quartz.jobStore.class=org.quartz.impl.mongodb.MongoJobStore
+org.quartz.jobStore.mongoUri=mongodb://localhost:27017
+org.quartz.jobStore.dbName=quartz
+org.quartz.jobStore.isClustered=true
+org.quartz.scheduler.instanceId=AUTO
+```
+

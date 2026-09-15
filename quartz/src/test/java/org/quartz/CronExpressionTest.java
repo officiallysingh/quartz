@@ -16,10 +16,11 @@
  */
 package org.quartz;
 
-import org.junit.jupiter.api.Test;
+    import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.text.ParseException;
+import java.time.Instant;
 import java.util.*;
 import java.util.Calendar;
 
@@ -380,9 +381,9 @@ public class CronExpressionTest extends SerializationTestSupport {
  		Trigger trigger = TriggerBuilder.newTrigger().withIdentity("test").withSchedule(schedBuilder).build();
  				
  		int i = 0;
- 		Date previousDate = trigger.getFireTimeAfter(new Date());
+ 		Instant previousDate = trigger.getFireTimeAfter(Instant.now());
  		while (++i < 26) {
- 			Date date = trigger.getFireTimeAfter(previousDate);
+ 			Instant date = trigger.getFireTimeAfter(previousDate);
  			System.out.println("fireTime: " + date + ", previousFireTime: " + previousDate);
             assertNotEquals(previousDate, date, "Next fire time is the same as previous fire time!");
  			previousDate = date;
@@ -399,9 +400,9 @@ public class CronExpressionTest extends SerializationTestSupport {
  		Trigger trigger = TriggerBuilder.newTrigger().withIdentity("test").withSchedule(schedBuilder).build();
  				
  		int i = 0;
- 		Date pdate = trigger.getFireTimeAfter(new Date());
+ 		Instant pdate = trigger.getFireTimeAfter(Instant.now());
  		while (++i < 26) {
- 			Date date = trigger.getFireTimeAfter(pdate);
+ 			Instant date = trigger.getFireTimeAfter(pdate);
  			System.out.println("fireTime: " + date + ", previousFireTime: " + pdate);
             assertNotEquals(pdate, date, "Next fire time is the same as previous fire time!");
  			pdate = date;

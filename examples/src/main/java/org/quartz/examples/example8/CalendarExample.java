@@ -35,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Calendar;
-import java.util.Date;
+import java.time.Instant;
 import java.util.GregorianCalendar;
 
 /**
@@ -75,7 +75,7 @@ public class CalendarExample {
 
     // schedule a job to run hourly, starting on halloween
     // at 10 am
-    Date runDate = dateOf(0, 0, 10, 31, 10);
+    Instant runDate = dateOf(0, 0, 10, 31, 10);
 
     JobDetail job = newJob(SimpleJob.class).withIdentity("job1", "group1").build();
 
@@ -83,7 +83,7 @@ public class CalendarExample {
         .withSchedule(simpleSchedule().withIntervalInHours(1).repeatForever()).modifiedByCalendar("holidays").build();
 
     // schedule the job and print the first run date
-    Date firstRunTime = sched.scheduleJob(job, trigger);
+    Instant firstRunTime = sched.scheduleJob(job, trigger);
 
     // print out the first execution date.
     // Note: Since Halloween (Oct 31) is a holiday, then

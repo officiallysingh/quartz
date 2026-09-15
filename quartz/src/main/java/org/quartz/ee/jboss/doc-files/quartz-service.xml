@@ -87,13 +87,10 @@
       org.quartz.threadPool.threadCount = 5
       org.quartz.threadPool.threadPriority = 4
 
-      org.quartz.jobStore.class = org.quartz.impl.jdbcjobstore.JobStoreCMT
-      org.quartz.jobStore.driverDelegateClass =  org.quartz.impl.jdbcjobstore.StdJDBCDelegate
-      org.quartz.jobStore.dataSource = QUARTZ
-      org.quartz.jobStore.nonManagedTXDataSource = QUARTZ_NO_TX
-      org.quartz.jobStore.tablePrefix = QRTZ_
-      org.quartz.dataSource.QUARTZ.jndiURL = java:/jdbc/QuartzDS
-      org.quartz.dataSource.QUARTZ_NO_TX.jndiURL = java:/jdbc/QuartzNoTxDS
+      org.quartz.jobStore.class = org.quartz.impl.mongodb.MongoJobStore
+      org.quartz.jobStore.mongoUri = mongodb://localhost:27017
+      org.quartz.jobStore.dbName = quartz
+      org.quartz.jobStore.isClustered = true
      
       
     </attribute>

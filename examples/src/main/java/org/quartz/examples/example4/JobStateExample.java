@@ -32,7 +32,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * This Example will demonstrate how job parameters can be passed into jobs and how state can be maintained
@@ -55,7 +55,7 @@ public class JobStateExample {
     log.info("------- Scheduling Jobs ----------------");
 
     // get a "nice round" time a few seconds in the future....
-    Date startTime = nextGivenSecondDate(null, 10);
+    Instant startTime = nextGivenSecondDate(null, 10);
 
     // job1 will only run 5 times (at start time, plus 4 repeats), every 10 seconds
     JobDetail job1 = newJob(ColorJob.class).withIdentity("job1", "group1").build();
@@ -68,7 +68,7 @@ public class JobStateExample {
     job1.getJobDataMap().put(ColorJob.EXECUTION_COUNT, 1);
 
     // schedule the job to run
-    Date scheduleTime1 = sched.scheduleJob(job1, trigger1);
+    Instant scheduleTime1 = sched.scheduleJob(job1, trigger1);
     log.info(job1.getKey() + " will run at: " + scheduleTime1 + " and repeat: " + trigger1.getRepeatCount()
              + " times, every " + trigger1.getRepeatInterval() / 1000 + " seconds");
 
@@ -84,7 +84,7 @@ public class JobStateExample {
     job2.getJobDataMap().put(ColorJob.EXECUTION_COUNT, 1);
 
     // schedule the job to run
-    Date scheduleTime2 = sched.scheduleJob(job2, trigger2);
+    Instant scheduleTime2 = sched.scheduleJob(job2, trigger2);
     log.info(job2.getKey().toString() + " will run at: " + scheduleTime2 + " and repeat: " + trigger2.getRepeatCount()
              + " times, every " + trigger2.getRepeatInterval() / 1000 + " seconds");
 

@@ -21,7 +21,7 @@ package org.quartz.core;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -73,7 +73,7 @@ public interface RemotableQuartzScheduler extends Remote {
 
     boolean isShutdown() throws RemoteException;
 
-    Date runningSince() throws RemoteException;
+    Instant runningSince() throws RemoteException;
 
     String getVersion() throws RemoteException;
 
@@ -93,9 +93,9 @@ public interface RemotableQuartzScheduler extends Remote {
     
     List<JobExecutionContext> getCurrentlyExecutingJobs() throws SchedulerException, RemoteException;
 
-    Date scheduleJob(JobDetail jobDetail, Trigger trigger) throws SchedulerException, RemoteException;
+    Instant scheduleJob(JobDetail jobDetail, Trigger trigger) throws SchedulerException, RemoteException;
 
-    Date scheduleJob(Trigger trigger) throws SchedulerException, RemoteException;
+    Instant scheduleJob(Trigger trigger) throws SchedulerException, RemoteException;
 
     void addJob(JobDetail jobDetail, boolean replace) throws SchedulerException, RemoteException;
 
@@ -105,7 +105,7 @@ public interface RemotableQuartzScheduler extends Remote {
 
     boolean unscheduleJob(TriggerKey triggerKey) throws SchedulerException, RemoteException;
 
-    Date rescheduleJob(TriggerKey triggerKey, Trigger newTrigger) throws SchedulerException, RemoteException;
+    Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger) throws SchedulerException, RemoteException;
         
     void triggerJob(JobKey jobKey, JobDataMap data) throws SchedulerException, RemoteException;
 

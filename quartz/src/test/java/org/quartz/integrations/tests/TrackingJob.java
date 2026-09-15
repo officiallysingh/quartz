@@ -34,7 +34,7 @@ public class TrackingJob implements Job {
         try {
             Scheduler scheduler = context.getScheduler();
             List<Long> scheduledFires = (List<Long>)scheduler.getContext().get(SCHEDULED_TIMES_KEY);
-            scheduledFires.add(context.getScheduledFireTime().getTime());
+            scheduledFires.add(context.getScheduledFireTime().toEpochMilli());
         } catch (SchedulerException e) {
             throw new JobExecutionException(e);
         }

@@ -18,7 +18,7 @@
  
 package org.quartz.examples.example4;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -86,7 +86,7 @@ public class ColorJob implements Job {
         JobDataMap data = context.getJobDetail().getJobDataMap();
         String favoriteColor = data.getString(FAVORITE_COLOR);
         int count = data.getInt(EXECUTION_COUNT);
-        _log.info("ColorJob: " + jobKey + " executing at " + new Date() + "\n" +
+        _log.info("ColorJob: " + jobKey + " executing at " + Instant.now() + "\n" +
             "  favorite color is " + favoriteColor + "\n" + 
             "  execution count (from job map) is " + count + "\n" + 
             "  execution count (from job member variable) is " + _counter);

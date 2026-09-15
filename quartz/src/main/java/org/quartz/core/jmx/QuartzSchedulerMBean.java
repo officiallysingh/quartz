@@ -1,6 +1,6 @@
 package org.quartz.core.jmx;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -112,7 +112,7 @@ public interface QuartzSchedulerMBean {
      * @return date of nextFireTime
      * @throws Exception
      */
-    Date scheduleJob(String jobName, String jobGroup,
+    Instant scheduleJob(String jobName, String jobGroup,
             String triggerName, String triggerGroup) throws Exception;
 
     /**
@@ -136,7 +136,7 @@ public interface QuartzSchedulerMBean {
      *
      * If the Trigger and JobDetail can be successfully instantiated, the remaining attributes will be
      * reflectively applied to those instances. The remaining attributes are limited to the types:
-     *  <code>Integer, Double, Float, String, Boolean, Date, Character, Map&lt;String, Object&gt;</code>.
+     *  <code>Integer, Double, Float, String, Boolean, Instant, Character, Map&lt;String, Object&gt;</code>.
      * Maps are further limited to containing values from the same set of types, less Map itself.
      * 
      * @throws Exception 
@@ -149,7 +149,7 @@ public interface QuartzSchedulerMBean {
      * fully-qualified trigger class name under the key "triggerClass."  That trigger type must contain a
      * no-arg constructor and have public access. Other attributes are applied reflectively and are limited
      * to the types:
-     *   <code>Integer, Double, Float, String, Boolean, Date, Character, Map&lt;String, Object&gt;.</code>
+     *   <code>Integer, Double, Float, String, Boolean, Instant, Character, Map&lt;String, Object&gt;.</code>
      * Maps are limited to containing values from the same set of types, less Map itself.
      * 
      * @param jobName
@@ -179,7 +179,7 @@ public interface QuartzSchedulerMBean {
      * class name under the key "jobDetailClass."  That JobDetail type must contain a no-arg constructor
      * and have public access. Other attributes are applied reflectively and are limited
      * to the types:
-     *   <code>Integer, Double, Float, String, Boolean, Date, Character, Map&lt;String, Object&gt;.</code>
+     *   <code>Integer, Double, Float, String, Boolean, Instant, Character, Map&lt;String, Object&gt;.</code>
      * Maps are limited to containing values from the same set of types, less Map itself.
      * 
      * @param abstractJobInfo map of attributes defining job

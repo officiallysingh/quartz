@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.text.ParseException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -776,8 +777,8 @@ public class XMLSchedulingDataProcessor implements ErrorHandler {
                 .withIdentity(triggerName, triggerGroup)
                 .withDescription(triggerDescription)
                 .forJob(triggerJobName, triggerJobGroup)
-                .startAt(triggerStartTime)
-                .endAt(triggerEndTime)
+                .startAt(Instants.fromDate(triggerStartTime))
+                .endAt(Instants.fromDate(triggerEndTime))
                 .withPriority(triggerPriority)
                 .modifiedByCalendar(triggerCalendarRef)
                 .withSchedule(sched)
@@ -1066,7 +1067,7 @@ public class XMLSchedulingDataProcessor implements ErrorHandler {
                     triggers.remove(trigger);  // remove triggers as we handle them...
 
                     if (trigger.getStartTime() == null) {
-                        trigger.setStartTime(new Date());
+                        trigger.setStartTime(Instant.now());
                     }
 
                     Trigger dupeT = sched.getTrigger(trigger.getKey());
@@ -1116,7 +1117,7 @@ public class XMLSchedulingDataProcessor implements ErrorHandler {
         for(MutableTrigger trigger: triggers) {
             
             if(trigger.getStartTime() == null) {
-                trigger.setStartTime(new Date());
+                trigger.setStartTime(Instant.now());
             }
             
             Trigger dupeT = sched.getTrigger(trigger.getKey());

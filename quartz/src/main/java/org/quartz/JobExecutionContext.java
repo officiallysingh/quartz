@@ -18,7 +18,7 @@
 
 package org.quartz;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * A context bundle containing handles to various environment information, that
@@ -167,7 +167,7 @@ public interface JobExecutionContext {
      * @return Returns the fireTime.
      * @see #getScheduledFireTime()
      */
-    Date getFireTime();
+    Instant getFireTime();
 
     /**
      * The scheduled time the trigger fired for. For instance the scheduled
@@ -177,11 +177,11 @@ public interface JobExecutionContext {
      * @return Returns the scheduledFireTime.
      * @see #getFireTime()
      */
-    Date getScheduledFireTime();
+    Instant getScheduledFireTime();
 
-    Date getPreviousFireTime();
+    Instant getPreviousFireTime();
 
-    Date getNextFireTime();
+    Instant getNextFireTime();
 
     /**
      * Get the unique Id that identifies this particular firing instance of the

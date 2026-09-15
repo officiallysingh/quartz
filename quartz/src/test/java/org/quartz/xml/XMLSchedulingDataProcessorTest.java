@@ -13,10 +13,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.Calendar;
-import java.util.Date;
+import java.time.Instant;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
@@ -36,17 +34,10 @@ import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
-import org.quartz.impl.DirectSchedulerFactory;
-import org.quartz.impl.SchedulerRepository;
 import org.quartz.impl.StdSchedulerFactory;
-import org.quartz.impl.jdbcjobstore.JdbcQuartzTestUtilities;
-import org.quartz.impl.jdbcjobstore.JdbcQuartzTestUtilities.DatabaseType;
-import org.quartz.impl.jdbcjobstore.JobStoreTX;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.simpl.CascadingClassLoadHelper;
-import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
-import org.quartz.utils.DBConnectionManager;
 import org.xml.sax.SAXParseException;
 
 /**
@@ -225,19 +216,19 @@ public class XMLSchedulingDataProcessorTest  {
    		}
    	}
 
-	private Date dateOfGMT_UTC(int hour, int minute, int second, int dayOfMonth, int month, int year) {
+	private Instant dateOfGMT_UTC(int hour, int minute, int second, int dayOfMonth, int month, int year) {
 		final GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
 		calendar.set(year, month, dayOfMonth, hour, minute, second);
 		calendar.set(Calendar.MILLISECOND, 0);
-		return calendar.getTime();
+		return calendar.toInstant();
 
 	}
 	
-	private Date dateOfLocalTime(int hour, int minute, int second, int dayOfMonth, int month, int year) {
+	private Instant dateOfLocalTime(int hour, int minute, int second, int dayOfMonth, int month, int year) {
 		final GregorianCalendar calendar = new GregorianCalendar();
 		calendar.set(year, month, dayOfMonth, hour, minute, second);
 		calendar.set(Calendar.MILLISECOND, 0);
-		return calendar.getTime();
+		return calendar.toInstant();
 	}
 
 	/** QTZ-273 */
@@ -281,103 +272,6 @@ public class XMLSchedulingDataProcessorTest  {
 		}
 	}
 
-    /** Test for QTZ-353, where it requires a JDBC storage */
-	void testRemoveJobClassNotFound() throws Exception {
-        String DB_NAME = "XmlDeleteNonExistsJobTestDatabase";
-        String SCHEDULER_NAME = "XmlDeleteNonExistsJobTestScheduler";
-        JdbcQuartzTestUtilities.createDatabase(DB_NAME, DatabaseType.DERBY);
-
-        JobStoreTX jobStore = new JobStoreTX();
-        jobStore.setDataSource(DB_NAME);
-        jobStore.setTablePrefix("QRTZ_");
-        jobStore.setInstanceId("AUTO");
-        DirectSchedulerFactory.getInstance().createScheduler(SCHEDULER_NAME, "AUTO", new SimpleThreadPool(4, Thread.NORM_PRIORITY), jobStore);
-        Scheduler scheduler = SchedulerRepository.getInstance().lookup(SCHEDULER_NAME);
-        try {
-            JobDetail jobDetail = JobBuilder.newJob(MyJob.class)
-                    .withIdentity("testjob1", "DEFAULT")
-                    .usingJobData("foo", "foo")
-                    .build();
-            Trigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity("testjob1", "DEFAULT")
-                    .withSchedule(CronScheduleBuilder.cronSchedule("* * * * * ?"))
-                    .build();
-            scheduler.scheduleJob(jobDetail, trigger);
-
-            JobDetail jobDetail2 = scheduler.getJobDetail(jobDetail.getKey());
-            Trigger trigger2 = scheduler.getTrigger(trigger.getKey());
-            assertThat(jobDetail2.getJobDataMap().getString("foo"), Matchers.is("foo"));
-            assertThat(trigger2, Matchers.instanceOf(CronTrigger.class));
-
-            modifyStoredJobClassName();
-
-            ClassLoadHelper clhelper = new CascadingClassLoadHelper();
-            clhelper.initialize();
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(clhelper);
-
-            processor.processFileAndScheduleJobs("org/quartz/xml/delete-no-jobclass.xml", scheduler);
-
-            jobDetail2 = scheduler.getJobDetail(jobDetail.getKey());
-            trigger2 = scheduler.getTrigger(trigger.getKey());
-            assertThat(trigger2, Matchers.nullValue());
-            assertThat(jobDetail2, Matchers.nullValue());
-
-            jobDetail2 = scheduler.getJobDetail(new JobKey("job1", "DEFAULT"));
-            trigger2 = scheduler.getTrigger(new TriggerKey("job1", "DEFAULT"));
-            assertThat(jobDetail2.getJobDataMap().getString("foo"), Matchers.is("bar"));
-            assertThat(trigger2, Matchers.instanceOf(SimpleTrigger.class));
-        } finally {
-            scheduler.shutdown(false);
-            JdbcQuartzTestUtilities.destroyDatabase(DB_NAME, DatabaseType.DERBY);
-        }
-    }
-
-	@Test
-    void testOverwriteJobClassNotFound() throws Exception {
-        String DB_NAME = "XmlDeleteNonExistsJobTestDatabase";
-        String SCHEDULER_NAME = "XmlDeleteNonExistsJobTestScheduler";
-        JdbcQuartzTestUtilities.createDatabase(DB_NAME, DatabaseType.DERBY);
-
-        JobStoreTX jobStore = new JobStoreTX();
-        jobStore.setDataSource(DB_NAME);
-        jobStore.setTablePrefix("QRTZ_");
-        jobStore.setInstanceId("AUTO");
-        DirectSchedulerFactory.getInstance().createScheduler(SCHEDULER_NAME, "AUTO", new SimpleThreadPool(4, Thread.NORM_PRIORITY), jobStore);
-        Scheduler scheduler = SchedulerRepository.getInstance().lookup(SCHEDULER_NAME);
-        try {
-            JobDetail jobDetail = JobBuilder.newJob(MyJob.class)
-                    .withIdentity("job1", "DEFAULT")
-                    .usingJobData("foo", "foo")
-                    .build();
-            Trigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity("job1", "DEFAULT")
-                    .withSchedule(CronScheduleBuilder.cronSchedule("* * * * * ?"))
-                    .build();
-            scheduler.scheduleJob(jobDetail, trigger);
-
-            JobDetail jobDetail2 = scheduler.getJobDetail(jobDetail.getKey());
-            Trigger trigger2 = scheduler.getTrigger(trigger.getKey());
-            assertThat(jobDetail2.getJobDataMap().getString("foo"), Matchers.is("foo"));
-            assertThat(trigger2, Matchers.instanceOf(CronTrigger.class));
-
-            modifyStoredJobClassName();
-
-            ClassLoadHelper clhelper = new CascadingClassLoadHelper();
-            clhelper.initialize();
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(clhelper);
-
-            processor.processFileAndScheduleJobs("org/quartz/xml/overwrite-no-jobclass.xml", scheduler);
-
-            jobDetail2 = scheduler.getJobDetail(jobDetail.getKey());
-            trigger2 = scheduler.getTrigger(trigger.getKey());
-            assertThat(jobDetail2.getJobDataMap().getString("foo"), Matchers.is("bar"));
-            assertThat(trigger2, Matchers.instanceOf(SimpleTrigger.class));
-        } finally {
-            scheduler.shutdown(false);
-            JdbcQuartzTestUtilities.destroyDatabase(DB_NAME, DatabaseType.DERBY);
-        }
-    }
-
 	@Test
 	void testXmlParserConfiguration() throws Exception {
 		Scheduler scheduler = null;
@@ -403,14 +297,4 @@ public class XMLSchedulingDataProcessorTest  {
 				scheduler.shutdown();
 		}
 	}
-
-	@Test
-    private void modifyStoredJobClassName() throws Exception {
-        String DB_NAME = "XmlDeleteNonExistsJobTestDatabase";
-        Connection conn = DBConnectionManager.getInstance().getConnection(DB_NAME);
-        Statement statement = conn.createStatement();
-        statement.executeUpdate("update qrtz_job_details set job_class_name='com.FakeNonExistsJob'");
-        statement.close();
-        conn.close();
-    }
 }

@@ -18,7 +18,7 @@ package org.quartz.integrations.tests;
  * 
  */
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -62,7 +62,7 @@ public class HelloJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {
 
         // Say Hello to the World and display the date/time
-        _log.info("Hello World! - " + new Date());
+        _log.info("Hello World! - " + Instant.now());
     }
 
 }

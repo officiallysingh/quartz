@@ -18,7 +18,7 @@
 
 package org.quartz.jobs.ee.mail;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Properties;
 
 import jakarta.mail.Address;
@@ -168,7 +168,7 @@ public class SendMailJob implements Job {
         
         mimeMessage.setSubject(mailInfo.getSubject());
         
-        mimeMessage.setSentDate(new Date());
+        mimeMessage.setSentDate(java.util.Date.from(Instant.now()));
 
         setMimeMessageContent(mimeMessage, mailInfo);
 

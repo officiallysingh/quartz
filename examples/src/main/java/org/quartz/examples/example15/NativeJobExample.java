@@ -27,7 +27,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 import static org.quartz.DateBuilder.futureDate;
 import static org.quartz.JobBuilder.newJob;
@@ -60,7 +60,7 @@ public class NativeJobExample {
     job.getJobDataMap().put(NativeJob.PROP_CONSUME_STREAMS, true);
 
     // Calculate the start time of all triggers as 5 seconds from now
-    Date startTime = futureDate(5, IntervalUnit.SECOND);
+    Instant startTime = futureDate(5, IntervalUnit.SECOND);
 
     // First trigger has priority of 1, and will repeat after 5 seconds
     Trigger trigger1 = newTrigger().withIdentity("TriggerWith5SecondRepeat").startAt(startTime)

@@ -317,7 +317,7 @@ public class QuartzSchedulerThread extends Thread {
                     if (triggers != null && !triggers.isEmpty()) {
 
                         now = System.currentTimeMillis();
-                        long triggerTime = triggers.get(0).getNextFireTime().getTime();
+                        long triggerTime = triggers.get(0).getNextFireTime().toEpochMilli();
                         long timeUntilTrigger = triggerTime - now;
                         while(timeUntilTrigger > 2) {
                             synchronized (sigLock) {

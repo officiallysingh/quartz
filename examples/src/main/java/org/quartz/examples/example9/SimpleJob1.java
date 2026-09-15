@@ -18,7 +18,7 @@
  
 package org.quartz.examples.example9;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -60,7 +60,7 @@ public class SimpleJob1 implements Job {
         // This job simply prints out its job name and the
         // date and time that it is running
         JobKey jobKey = context.getJobDetail().getKey();
-        _log.info("SimpleJob1 says: " + jobKey + " executing at " + new Date());
+        _log.info("SimpleJob1 says: " + jobKey + " executing at " + Instant.now());
     }
 
 }

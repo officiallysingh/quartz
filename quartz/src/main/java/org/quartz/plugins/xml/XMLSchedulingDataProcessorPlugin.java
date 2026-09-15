@@ -59,9 +59,9 @@ import static org.quartz.TriggerBuilder.newTrigger;
  * </p>
  * 
  * <p>
- * If using this plugin with JobStoreCMT, be sure to set the
- * plugin property <em>wrapInUserTransaction</em> to true.  Also, if you have a 
- * positive <em>scanInterval</em> be sure to set 
+ * If this plugin participates in container-managed transactions, set
+ * <em>wrapInUserTransaction</em> to true. Also, if you have a
+ * positive <em>scanInterval</em> be sure to set
  * <em>org.quartz.scheduler.wrapJobExecutionInUserTransaction</em> to true.
  * </p>
  * 

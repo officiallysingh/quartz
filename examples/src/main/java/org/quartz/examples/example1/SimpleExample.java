@@ -29,7 +29,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * This Example will demonstrate how to start and shutdown the Quartz scheduler and how to schedule a job to run in
@@ -51,7 +51,7 @@ public class SimpleExample {
     log.info("------- Initialization Complete -----------");
 
     // computer a time that is on the next round minute
-    Date runTime = evenMinuteDate(new Date());
+    Instant runTime = evenMinuteDate(Instant.now());
 
     log.info("------- Scheduling Job  -------------------");
 

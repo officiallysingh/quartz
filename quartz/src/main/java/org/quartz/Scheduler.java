@@ -19,7 +19,7 @@
 
 package org.quartz;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -416,7 +416,7 @@ public interface Scheduler {
      *           if the Job or Trigger cannot be added to the Scheduler, or
      *           there is an internal Scheduler error.
      */
-    Date scheduleJob(JobDetail jobDetail, Trigger trigger)
+    Instant scheduleJob(JobDetail jobDetail, Trigger trigger)
         throws SchedulerException;
 
     /**
@@ -428,7 +428,7 @@ public interface Scheduler {
      *           added to the Scheduler, or there is an internal Scheduler
      *           error.
      */
-    Date scheduleJob(Trigger trigger) throws SchedulerException;
+    Instant scheduleJob(Trigger trigger) throws SchedulerException;
 
     /**
      * Schedule all of the given jobs with the related set of triggers.
@@ -493,7 +493,7 @@ public interface Scheduler {
      *         new trigger is therefore not stored), otherwise
      *         the first fire time of the newly scheduled trigger is returned.
      */
-    Date rescheduleJob(TriggerKey triggerKey, Trigger newTrigger) 
+    Instant rescheduleJob(TriggerKey triggerKey, Trigger newTrigger) 
         throws SchedulerException;
     
     /**

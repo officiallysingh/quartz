@@ -6,7 +6,7 @@ import static javax.management.openmbean.SimpleType.STRING;
 
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -127,14 +127,14 @@ public class TriggerSupport {
         if(cData.containsKey("jobDataMap")) {
             trigger.setJobDataMap(JobDataMapSupport.newJobDataMap((TabularData)cData.get("jobDataMap")));
         }
-        Date startTime;
+        Instant startTime;
         if(cData.containsKey("startTime")) {
-            startTime = (Date) cData.get("startTime");
+            startTime = (Instant) cData.get("startTime");
         } else {
-            startTime = new Date();
+            startTime = Instant.now();
         }
         trigger.setStartTime(startTime);
-        trigger.setEndTime((Date) cData.get("endTime"));
+        trigger.setEndTime((Instant) cData.get("endTime"));
         if(cData.containsKey("misfireInstruction")) {
             trigger.setMisfireInstruction((Integer) cData.get("misfireInstruction"));
         }
@@ -153,15 +153,15 @@ public class TriggerSupport {
             Map<String, Object> mapTyped = (Map<String, Object>)attrMap.get("jobDataMap");
             trigger.setJobDataMap(JobDataMapSupport.newJobDataMap(mapTyped));
         }
-        Date startTime;
+        Instant startTime;
         if(attrMap.containsKey("startTime")) {
-            startTime = (Date) attrMap.get("startTime");
+            startTime = (Instant) attrMap.get("startTime");
         } else {
-            startTime = new Date();
+            startTime = Instant.now();
         }
         trigger.setStartTime(startTime);
         if(attrMap.containsKey("endTime")) {
-            trigger.setEndTime((Date) attrMap.get("endTime"));
+            trigger.setEndTime((Instant) attrMap.get("endTime"));
         }
         if(attrMap.containsKey("misfireInstruction")) {
             trigger.setMisfireInstruction((Integer) attrMap.get("misfireInstruction"));

@@ -17,7 +17,7 @@
  
 package org.quartz.examples.example1;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +62,7 @@ public class HelloJob implements Job {
         throws JobExecutionException {
 
         // Say Hello to the World and display the date/time
-        _log.info("Hello World! - " + new Date());
+        _log.info("Hello World! - " + Instant.now());
     }
 
 }

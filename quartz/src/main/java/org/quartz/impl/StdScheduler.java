@@ -18,7 +18,7 @@
 
 package org.quartz.impl;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -245,7 +245,7 @@ public class StdScheduler implements Scheduler {
      * Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
      * </p>
      */
-    public Date scheduleJob(JobDetail jobDetail, Trigger trigger)
+    public Instant scheduleJob(JobDetail jobDetail, Trigger trigger)
         throws SchedulerException {
         return sched.scheduleJob(jobDetail, trigger);
     }
@@ -255,7 +255,7 @@ public class StdScheduler implements Scheduler {
      * Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
      * </p>
      */
-    public Date scheduleJob(Trigger trigger) throws SchedulerException {
+    public Instant scheduleJob(Trigger trigger) throws SchedulerException {
         return sched.scheduleJob(trigger);
     }
 
@@ -317,7 +317,7 @@ public class StdScheduler implements Scheduler {
      * Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
      * </p>
      */
-    public Date rescheduleJob(TriggerKey triggerKey,
+    public Instant rescheduleJob(TriggerKey triggerKey,
             Trigger newTrigger) throws SchedulerException {
         return sched.rescheduleJob(triggerKey, newTrigger);
     }

@@ -19,7 +19,7 @@
 
 package org.quartz;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * Describes the settings and capabilities of a given <code>{@link Scheduler}</code>
@@ -53,7 +53,7 @@ public class SchedulerMetaData implements java.io.Serializable {
 
     private final boolean shutdown;
 
-    private final Date startTime;
+    private final Instant startTime;
 
     private final int numJobsExec;
 
@@ -79,7 +79,7 @@ public class SchedulerMetaData implements java.io.Serializable {
 
     public SchedulerMetaData(String schedName, String schedInst,
             Class<?> schedClass, boolean isRemote, boolean started,
-            boolean isInStandbyMode, boolean shutdown, Date startTime, int numJobsExec,
+            boolean isInStandbyMode, boolean shutdown, Instant startTime, int numJobsExec,
             Class<?> jsClass, boolean jsPersistent, boolean jsClustered, Class<?> tpClass, int tpSize,
             String version) {
         this.schedName = schedName;
@@ -136,12 +136,12 @@ public class SchedulerMetaData implements java.io.Serializable {
 
     /**
      * <p>
-     * Returns the <code>Date</code> at which the Scheduler started running.
+     * Returns the <code>Instant</code> at which the Scheduler started running.
      * </p>
      * 
      * @return null if the scheduler has not been started.
      */
-    public Date getRunningSince() {
+    public Instant getRunningSince() {
         return startTime;
     }
     

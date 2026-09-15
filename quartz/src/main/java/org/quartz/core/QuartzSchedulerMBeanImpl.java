@@ -11,7 +11,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -246,9 +246,9 @@ public class QuartzSchedulerMBeanImpl extends StandardMBean implements
             AbstractTrigger<?> at = (AbstractTrigger<?>)trigger;
             at.setKey(new TriggerKey(at.getName(), at.getGroup()));
             
-            Date startDate = at.getStartTime();
-            if(startDate == null || startDate.before(new Date())) {
-                at.setStartTime(new Date());
+            Instant startDate = at.getStartTime();
+            if(startDate == null || startDate.isBefore(Instant.now())) {
+                at.setStartTime(Instant.now());
             }
             
             scheduler.deleteJob(jobDetail.getKey());
@@ -286,9 +286,9 @@ public class QuartzSchedulerMBeanImpl extends StandardMBean implements
             AbstractTrigger<?> at = (AbstractTrigger<?>)trigger;
             at.setKey(new TriggerKey(at.getName(), at.getGroup()));
             
-            Date startDate = at.getStartTime();
-            if(startDate == null || startDate.before(new Date())) {
-                at.setStartTime(new Date());
+            Instant startDate = at.getStartTime();
+            if(startDate == null || startDate.isBefore(Instant.now())) {
+                at.setStartTime(Instant.now());
             }
             
             scheduler.scheduleJob(trigger);
@@ -469,7 +469,7 @@ public class QuartzSchedulerMBeanImpl extends StandardMBean implements
         }
     }
 
-    public Date scheduleJob(String jobName, String jobGroup,
+    public Instant scheduleJob(String jobName, String jobGroup,
             String triggerName, String triggerGroup) throws Exception {
         try {
             JobKey jobKey = jobKey(jobName, jobGroup);

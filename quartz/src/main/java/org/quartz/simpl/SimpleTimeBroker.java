@@ -18,7 +18,7 @@
 
 package org.quartz.simpl;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.quartz.SchedulerConfigException;
 import org.quartz.spi.TimeBroker;
@@ -57,11 +57,11 @@ public class SimpleTimeBroker implements TimeBroker {
 
     /**
      * <p>
-     * Get the current time, simply using <code>new Date()</code>.
+     * Get the current time, simply using <code>Instant.now()</code>.
      * </p>
      */
-    public Date getCurrentTime() {
-        return new Date();
+    public Instant getCurrentTime() {
+        return Instant.now();
     }
 
     public void initialize() throws SchedulerConfigException {

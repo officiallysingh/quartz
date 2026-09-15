@@ -1,6 +1,6 @@
 package org.quartz.spi;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.quartz.Calendar;
 import org.quartz.JobExecutionContext;
@@ -46,7 +46,7 @@ public interface OperableTrigger extends MutableTrigger {
      *         by the scheduler, which is also the same value <code>getNextFireTime()</code>
      *         will return (until after the first firing of the <code>Trigger</code>).
      */
-    Date computeFirstFireTime(Calendar calendar);
+    Instant computeFirstFireTime(Calendar calendar);
 
     /**
      * <p>
@@ -145,7 +145,7 @@ public interface OperableTrigger extends MutableTrigger {
     String getFireInstanceId();
 
     
-    void setNextFireTime(Date nextFireTime);
+    void setNextFireTime(Instant nextFireTime);
     
-    void setPreviousFireTime(Date previousFireTime);
+    void setPreviousFireTime(Instant previousFireTime);
 }

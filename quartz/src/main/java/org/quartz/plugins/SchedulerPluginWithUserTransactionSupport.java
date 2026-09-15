@@ -29,7 +29,7 @@ import org.quartz.spi.SchedulerPlugin;
 /**
  * Base class for plugins that wish to support having their start and
  * shutdown methods run within a <code>UserTransaction</code>.  This is 
- * often necessary if using the JobStoreCMT and the plugin interacts with
+ * often necessary if the plugin interacts with
  * jobs/triggers. 
  * 
  * <p>
@@ -120,16 +120,16 @@ public abstract class SchedulerPluginWithUserTransactionSupport implements
     }
     
     /**
-     * Wrap the start() and shutdown() methods in a UserTransaction.  This is necessary
-     * for some plugins if using the JobStoreCMT.
+     * Wrap the start() and shutdown() methods in a UserTransaction when the plugin
+     * participates in container-managed transactions.
      */
     public boolean getWrapInUserTransaction() {
         return wrapInUserTransaction;
     }
 
     /**
-     * Wrap the start() and shutdown() methods in a UserTransaction.  This is necessary
-     * for some plugins if using the JobStoreCMT.
+     * Wrap the start() and shutdown() methods in a UserTransaction when the plugin
+     * participates in container-managed transactions.
      */
     public void setWrapInUserTransaction(boolean wrapInUserTransaction) {
         this.wrapInUserTransaction = wrapInUserTransaction;

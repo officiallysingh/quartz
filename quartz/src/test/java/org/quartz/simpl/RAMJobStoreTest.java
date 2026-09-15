@@ -37,6 +37,7 @@ public class RAMJobStoreTest extends AbstractJobStoreTest {
 
     }
 
+    @Override
     protected Map<String, JobStore> stores() {
         return stores;
     }

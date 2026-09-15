@@ -21,7 +21,7 @@ package org.quartz.impl;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -349,7 +349,7 @@ public class RemoteScheduler implements Scheduler {
      * Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
      * </p>
      */
-    public Date scheduleJob(JobDetail jobDetail, Trigger trigger)
+    public Instant scheduleJob(JobDetail jobDetail, Trigger trigger)
         throws SchedulerException {
         try {
             return getRemoteScheduler().scheduleJob(jobDetail,
@@ -365,7 +365,7 @@ public class RemoteScheduler implements Scheduler {
      * Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
      * </p>
      */
-    public Date scheduleJob(Trigger trigger) throws SchedulerException {
+    public Instant scheduleJob(Trigger trigger) throws SchedulerException {
         try {
             return getRemoteScheduler().scheduleJob(trigger);
         } catch (RemoteException re) {
@@ -472,7 +472,7 @@ public class RemoteScheduler implements Scheduler {
      * Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
      * </p>
      */
-    public Date rescheduleJob(TriggerKey triggerKey,
+    public Instant rescheduleJob(TriggerKey triggerKey,
             Trigger newTrigger) throws SchedulerException {
         try {
             return getRemoteScheduler().rescheduleJob(triggerKey,

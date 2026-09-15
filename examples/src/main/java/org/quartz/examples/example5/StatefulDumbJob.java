@@ -25,7 +25,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.PersistJobDataAfterExecution;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * <p>
@@ -69,7 +69,7 @@ public class StatefulDumbJob implements Job {
    * @throws JobExecutionException if there is an exception while executing the job.
    */
   public void execute(JobExecutionContext context) throws JobExecutionException {
-    System.err.println("---" + context.getJobDetail().getKey() + " executing.[" + new Date() + "]");
+    System.err.println("---" + context.getJobDetail().getKey() + " executing.[" + Instant.now() + "]");
 
     JobDataMap map = context.getJobDetail().getJobDataMap();
 

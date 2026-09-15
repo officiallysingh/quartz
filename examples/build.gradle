@@ -7,7 +7,7 @@ dependencies {
     implementation project(':quartz-jobs')
 
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
-    implementation "org.slf4j:slf4j-log4j12:$slf4jVersion"
+    runtimeOnly "ch.qos.logback:logback-classic:$logbackVersion"
 }
 
 tasks.withType(JavaExec).configureEach {

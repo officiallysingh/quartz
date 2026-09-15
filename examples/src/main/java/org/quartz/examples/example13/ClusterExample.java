@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Used to test/show the clustering features of JDBCJobStore (JobStoreTX or JobStoreCMT).
+ * Used to test/show the clustering features of MongoJobStore.
  * <p>
  * All instances MUST use a different properties file, because their instance Ids must be different, however all other
  * properties should be the same.
@@ -42,54 +42,19 @@ import org.slf4j.LoggerFactory;
  * If you want it to clear out existing jobs and triggers, pass a command-line argument called "clearJobs".
  * </p>
  * <p>
- * You should probably start with a "fresh" set of tables (assuming you may have some data lingering in it from other
- * tests), since mixing data from a non-clustered setup with a clustered one can be bad.
- * </p>
- * <p>
  * Try killing one of the cluster instances while they are running, and see that the remaining instance(s) recover the
  * in-progress jobs. Note that detection of the failure may take up to 15 or so seconds with the default settings.
  * </p>
  * <p>
- * Also try running it with/without the shutdown-hook plugin registered with the scheduler.
- * (org.quartz.plugins.management.ShutdownHookPlugin).
- * </p>
- * <p>
  * <i>Note:</i> Never run clustering on separate machines, unless their clocks are synchronized using some form of
- * time-sync service (such as an NTP daemon).
+ * time-sync service (such as an NTP daemon). Clustering requires a MongoDB replica set in production.
  * </p>
- *
- * Configure the instance1.properties file and the instance2.properties
- * file as necessary (see the "Configuration" section below for details).
- *
- * This example uses a database to maintain scheduling information in a
- * clustered environment.   You will need to first install the Quartz
- * database tables.  SQL table creation scripts are included with the Quartz
- * distribution for many popular database platforms.
- *
- * You will need a JDBC Driver for your database. The example uses Postgres to demonstrate
- * You can download Postgres JDBC driver here http://jdbc.postgresql.org
- * Just put the jar under "lib" folder of the Quartz distribution
- *
- * After you have installed the database scripts, you will need to
- * configure both properties file so that Quartz knows how to connect to
- * your database.
- *
- * The following parameters need to be set: (this shows a PostgreSQL example)
  *
  * <pre>
- * org.quartz.jobStore.class=org.quartz.impl.jdbcjobstore.JobStoreTX
- * org.quartz.jobStore.driverDelegateClass=org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
- * org.quartz.jobStore.useProperties=false
- * org.quartz.jobStore.dataSource=myDS
- * org.quartz.jobStore.tablePrefix=QRTZ_
+ * org.quartz.jobStore.class=org.quartz.impl.mongodb.MongoJobStore
+ * org.quartz.jobStore.mongoUri=mongodb://localhost:27017
+ * org.quartz.jobStore.dbName=quartz
  * org.quartz.jobStore.isClustered=true
- *
- * org.quartz.dataSource.myDS.driver = org.postgresql.Driver
- * org.quartz.dataSource.myDS.URL = jdbc:postgresql://localhost:5432/quartz
- * org.quartz.dataSource.myDS.user = quartz
- * org.quartz.dataSource.myDS.password = quartz
- * org.quartz.dataSource.myDS.maxConnections = 5
- * org.quartz.dataSource.myDS.validationQuery=
  * </pre>
  *
  * @see SimpleRecoveryJob

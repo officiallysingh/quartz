@@ -24,7 +24,7 @@ allprojects {
     plugins.withType(JavaBasePlugin) {
         java {
             toolchain {
-                languageVersion = JavaLanguageVersion.of(11)
+                languageVersion = JavaLanguageVersion.of(26)
             }
         }
     }
@@ -74,10 +74,7 @@ allprojects {
                                 .dependency
                                 .findAll { dependency ->
                                     // Patch up dependency scopes per expectations of maven users
-                                    (dependency.groupId.text() == 'com.mchange' ||
-                                            dependency.groupId.text() == 'com.zaxxer' ||
-                                            dependency.artifactId.text() == 'slf4j-log4j12' ||
-                                            dependency.groupId.text() == 'jakarta.xml' )
+                                    (dependency.groupId.text() == 'jakarta.xml')
                                 }
                                 .each { dependency ->
                                     // Set scope value to compile.
@@ -118,7 +115,7 @@ allprojects {
             TaskProvider<WriteProperties> pomPropertiesTask = project.getTasks().register(pomTask.getName().replace("PomFile", "PomProperties"), WriteProperties.class, task -> {
                 task.dependsOn(pomTask);
                 task.setGroup(PUBLISH_TASK_GROUP);
-                task.setOutputFile(new File(pomTask.getDestination().getParentFile(), "pom.properties"));
+                task.setDestinationFile(new File(pomTask.getDestination().getParentFile(), "pom.properties"));
                 task.property("groupId", coordinates.getGroupId());
                 task.property("artifactId", coordinates.getArtifactId());
                 task.property("version", coordinates.getVersion());

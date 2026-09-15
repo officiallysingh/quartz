@@ -25,7 +25,7 @@ import org.quartz.JobKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * <p>
@@ -60,7 +60,7 @@ public class SimpleJob implements Job {
     // This job simply prints out its job name and the
     // date and time that it is running
     JobKey jobKey = context.getJobDetail().getKey();
-    _log.info("Executing job: " + jobKey + " executing at " + new Date());
+    _log.info("Executing job: " + jobKey + " executing at " + Instant.now());
 
     // wait for a period of time
     long delayTime = context.getJobDetail().getJobDataMap().getLong(DELAY_TIME);
@@ -70,7 +70,7 @@ public class SimpleJob implements Job {
       //
     }
 
-    _log.info("Finished Executing job: " + jobKey + " at " + new Date());
+    _log.info("Finished Executing job: " + jobKey + " at " + Instant.now());
   }
 
 }

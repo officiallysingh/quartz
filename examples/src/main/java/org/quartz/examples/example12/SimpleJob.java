@@ -18,7 +18,7 @@
  
 package org.quartz.examples.example12;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +66,7 @@ public class SimpleJob implements Job {
 
         String message = (String) context.getJobDetail().getJobDataMap().get(MESSAGE);
 
-        _log.info("SimpleJob: " + jobKey + " executing at " + new Date());
+        _log.info("SimpleJob: " + jobKey + " executing at " + Instant.now());
         _log.info("SimpleJob: msg: " + message);
     }
 

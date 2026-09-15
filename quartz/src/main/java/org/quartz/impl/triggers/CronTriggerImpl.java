@@ -20,7 +20,10 @@ package org.quartz.impl.triggers;
 
 import java.text.ParseException;
 import java.util.Calendar;
+import java.time.Instant;
 import java.util.Date;
+
+import org.quartz.Instants;
 import java.util.TimeZone;
 
 import org.quartz.CronExpression;
@@ -105,7 +108,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      */
     public CronTriggerImpl() {
         super();
-        setStartTime(new Date());
+        setStartTime(Instant.now());
         setTimeZone(TimeZone.getDefault());
     }
 
@@ -154,28 +157,25 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * </p>
      */
     @Override
-    public Date getStartTime() {
-        return this.startTime;
+    public Instant getStartTime() {
+        return Instants.fromDate(this.startTime);
     }
 
     @Override
-    public void setStartTime(Date startTime) {
+    public void setStartTime(Instant startTime) {
         if (startTime == null) {
             throw new IllegalArgumentException("Start time cannot be null");
         }
 
-        Date eTime = getEndTime();
-        if (eTime != null && eTime.before(startTime)) {
+        Date start = Instants.toDate(startTime);
+        Date eTime = endTime;
+        if (eTime != null && eTime.before(start)) {
             throw new IllegalArgumentException(
                 "End time cannot be before start time");
         }
         
-        // round off millisecond...
-        // Note timeZone is not needed here as parameter for
-        // Calendar.getInstance(),
-        // since time zone is implicit when using a Date in the setTime method.
         Calendar cl = Calendar.getInstance();
-        cl.setTime(startTime);
+        cl.setTime(start);
         cl.set(Calendar.MILLISECOND, 0);
 
         this.startTime = cl.getTime();
@@ -190,19 +190,20 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * @see #getFinalFireTime()
      */
     @Override
-    public Date getEndTime() {
-        return this.endTime;
+    public Instant getEndTime() {
+        return Instants.fromDate(this.endTime);
     }
 
     @Override
-    public void setEndTime(Date endTime) {
-        Date sTime = getStartTime();
-        if (sTime != null && endTime != null && sTime.after(endTime)) {
+    public void setEndTime(Instant endTime) {
+        Date end = Instants.toDate(endTime);
+        Date sTime = startTime;
+        if (sTime != null && end != null && sTime.after(end)) {
             throw new IllegalArgumentException(
                     "End time cannot be before start time");
         }
 
-        this.endTime = endTime;
+        this.endTime = end;
     }
 
     /**
@@ -222,8 +223,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, org.quartz.Calendar, java.util.Date, java.util.Date)
      */
     @Override
-    public Date getNextFireTime() {
-        return this.nextFireTime;
+    public Instant getNextFireTime() {
+        return Instants.fromDate(this.nextFireTime);
     }
 
     /**
@@ -233,8 +234,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * returned.
      */
     @Override
-    public Date getPreviousFireTime() {
-        return this.previousFireTime;
+    public Instant getPreviousFireTime() {
+        return Instants.fromDate(this.previousFireTime);
     }
 
     /**
@@ -243,8 +244,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * <b>This method should not be invoked by client code.</b>
      * </p>
      */
-    public void setNextFireTime(Date nextFireTime) {
-        this.nextFireTime = nextFireTime;
+    public void setNextFireTime(Instant nextFireTime) {
+        this.nextFireTime = Instants.toDate(nextFireTime);
     }
 
     /**
@@ -256,8 +257,8 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * <b>This method should not be invoked by client code.</b>
      * </p>
      */
-    public void setPreviousFireTime(Date previousFireTime) {
-        this.previousFireTime = previousFireTime;
+    public void setPreviousFireTime(Instant previousFireTime) {
+        this.previousFireTime = Instants.toDate(previousFireTime);
     }
 
     /* (non-Javadoc)
@@ -307,21 +308,25 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * </p>
      */
     @Override
-    public Date getFireTimeAfter(Date afterTime) {
+    public Instant getFireTimeAfter(Instant afterTime) {
+        return Instants.fromDate(fireTimeAfter(Instants.toDate(afterTime)));
+    }
+
+    public Date fireTimeAfter(Date afterTime) {
         if (afterTime == null) {
             afterTime = new Date();
         }
 
-        if (getStartTime().after(afterTime)) {
-            afterTime = new Date(getStartTime().getTime() - 1000L);
+        if (startTime.after(afterTime)) {
+            afterTime = new Date(startTime.getTime() - 1000L);
         }
 
-        if (getEndTime() != null && (afterTime.compareTo(getEndTime()) >= 0)) {
+        if (endTime != null && (afterTime.compareTo(endTime) >= 0)) {
             return null;
         }
         
         Date pot = getTimeAfter(afterTime);
-        if (getEndTime() != null && pot != null && pot.after(getEndTime())) {
+        if (endTime != null && pot != null && pot.after(endTime)) {
             return null;
         }
 
@@ -340,19 +345,19 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      * </p>
      */
     @Override
-    public Date getFinalFireTime() {
+    public Instant getFinalFireTime() {
         Date resultTime;
-        if (getEndTime() != null) {
-            resultTime = getTimeBefore(new Date(getEndTime().getTime() + 1000L));
+        if (endTime != null) {
+            resultTime = getTimeBefore(new Date(endTime.getTime() + 1000L));
         } else {
             resultTime = (cronEx == null) ? null : cronEx.getFinalFireTime();
         }
         
-        if ((resultTime != null) && (getStartTime() != null) && (resultTime.before(getStartTime()))) {
+        if ((resultTime != null) && (startTime != null) && (resultTime.before(startTime))) {
             return null;
         } 
         
-        return resultTime;
+        return Instants.fromDate(resultTime);
     }
 
     /**
@@ -397,14 +402,14 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
         }
 
         if (instr == MISFIRE_INSTRUCTION_DO_NOTHING) {
-            Date newFireTime = getFireTimeAfter(new Date());
+            Date newFireTime = fireTimeAfter(new Date());
             while (newFireTime != null && cal != null
                     && !cal.isTimeIncluded(newFireTime.getTime())) {
-                newFireTime = getFireTimeAfter(newFireTime);
+                newFireTime = fireTimeAfter(newFireTime);
             }
-            setNextFireTime(newFireTime);
+            setNextFireTime(Instants.fromDate(newFireTime));
         } else if (instr == MISFIRE_INSTRUCTION_FIRE_ONCE_NOW) {
-            setNextFireTime(new Date());
+            setNextFireTime(Instant.now());
         }
     }
 
@@ -457,7 +462,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
         
         Date testTime = test.getTime();
         
-        Date fta = getFireTimeAfter(new Date(test.getTime().getTime() - 1000));
+        Date fta = fireTimeAfter(new Date(test.getTime().getTime() - 1000));
         
         if(fta == null)
             return false;
@@ -476,7 +481,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
         }
         
         while(fta.before(testTime)) {
-            fta = getFireTimeAfter(fta);
+            fta = fireTimeAfter(fta);
         }
 
         return fta.equals(testTime);
@@ -495,11 +500,11 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
     @Override
     public void triggered(org.quartz.Calendar calendar) {
         previousFireTime = nextFireTime;
-        nextFireTime = getFireTimeAfter(nextFireTime);
+        nextFireTime = fireTimeAfter(nextFireTime);
 
         while (nextFireTime != null && calendar != null
                 && !calendar.isTimeIncluded(nextFireTime.getTime())) {
-            nextFireTime = getFireTimeAfter(nextFireTime);
+            nextFireTime = fireTimeAfter(nextFireTime);
         }
     }
 
@@ -510,7 +515,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
     @Override
     public void updateWithNewCalendar(org.quartz.Calendar calendar, long misfireThreshold)
     {
-        nextFireTime = getFireTimeAfter(previousFireTime);
+        nextFireTime = fireTimeAfter(previousFireTime);
         
         if (nextFireTime == null || calendar == null) {
             return;
@@ -519,7 +524,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
         Date now = new Date();
         while (nextFireTime != null && !calendar.isTimeIncluded(nextFireTime.getTime())) {
 
-            nextFireTime = getFireTimeAfter(nextFireTime);
+            nextFireTime = fireTimeAfter(nextFireTime);
 
             if(nextFireTime == null)
                 break;
@@ -535,7 +540,7 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
             if(nextFireTime != null && nextFireTime.before(now)) {
                 long diff = now.getTime() - nextFireTime.getTime();
                 if(diff >= misfireThreshold) {
-                    nextFireTime = getFireTimeAfter(nextFireTime);
+                    nextFireTime = fireTimeAfter(nextFireTime);
                 }
             }
         }
@@ -558,15 +563,15 @@ public class CronTriggerImpl extends AbstractTrigger<CronTrigger> implements Cro
      *         will return (until after the first firing of the <code>Trigger</code>).
      */
     @Override
-    public Date computeFirstFireTime(org.quartz.Calendar calendar) {
-        nextFireTime = getFireTimeAfter(new Date(getStartTime().getTime() - 1000L));
+    public Instant computeFirstFireTime(org.quartz.Calendar calendar) {
+        nextFireTime = fireTimeAfter(new Date(startTime.getTime() - 1000L));
 
         while (nextFireTime != null && calendar != null
                 && !calendar.isTimeIncluded(nextFireTime.getTime())) {
-            nextFireTime = getFireTimeAfter(nextFireTime);
+            nextFireTime = fireTimeAfter(nextFireTime);
         }
 
-        return nextFireTime;
+        return Instants.fromDate(nextFireTime);
     }
 
     /* (non-Javadoc)

@@ -77,13 +77,15 @@ import org.slf4j.LoggerFactory;
  *
  *
  * <p>
- * You can also use a JDBCJobStore instead of the RAMJobStore:
+ * You can also use MongoJobStore instead of the RAMJobStore:
  * </p>
  *
  * <pre>
- *  DBConnectionManager.getInstance().addConnectionProvider("someDatasource", new JNDIConnectionProvider("someDatasourceJNDIName"));
- *
- *  JobStoreTX jdbcJobStore = new JobStoreTX(); jdbcJobStore.setDataSource("someDatasource"); jdbcJobStore.setPostgresStyleBlobs(true); jdbcJobStore.setTablePrefix("QRTZ_"); jdbcJobStore.setInstanceId("My Instance");
+ *  MongoJobStore mongoJobStore = new MongoJobStore();
+ *  mongoJobStore.setMongoUri("mongodb://localhost:27017");
+ *  mongoJobStore.setDbName("quartz");
+ *  mongoJobStore.setInstanceId("My Instance");
+ *  mongoJobStore.setClustered(true);
  * </pre>
  *
  * @author Mohammad Rezaei

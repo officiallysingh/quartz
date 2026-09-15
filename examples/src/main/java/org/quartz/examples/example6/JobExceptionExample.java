@@ -32,7 +32,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * This job demonstrates how Quartz can handle JobExecutionExceptions that are thrown by jobs.
@@ -57,7 +57,7 @@ public class JobExceptionExample {
     // jobs can be scheduled before start() has been called
 
     // get a "nice round" time a few seconds in the future...
-    Date startTime = nextGivenSecondDate(null, 15);
+    Instant startTime = nextGivenSecondDate(null, 15);
 
     // badJob1 will run every 10 seconds
     // this job will throw an exception and refire
@@ -67,7 +67,7 @@ public class JobExceptionExample {
     SimpleTrigger trigger = newTrigger().withIdentity("trigger1", "group1").startAt(startTime)
         .withSchedule(simpleSchedule().withIntervalInSeconds(10).repeatForever()).build();
 
-    Date ft = sched.scheduleJob(job, trigger);
+    Instant ft = sched.scheduleJob(job, trigger);
     log.info(job.getKey() + " will run at: " + ft + " and repeat: " + trigger.getRepeatCount() + " times, every "
              + trigger.getRepeatInterval() / 1000 + " seconds");
 

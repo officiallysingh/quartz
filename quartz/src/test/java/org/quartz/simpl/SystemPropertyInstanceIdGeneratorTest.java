@@ -16,7 +16,6 @@
  */
 package org.quartz.simpl;
 
-import java.sql.SQLException;
 import java.util.Properties;
 
 
@@ -24,8 +23,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.Scheduler;
 import org.quartz.impl.StdSchedulerFactory;
-import org.quartz.impl.jdbcjobstore.JdbcQuartzTestUtilities;
-import org.quartz.impl.jdbcjobstore.JdbcQuartzTestUtilities.DatabaseType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -94,12 +91,6 @@ class SystemPropertyInstanceIdGeneratorTest  {
 
   @Test
   void testGeneratorThroughSchedulerInstantiation() throws Exception {
-    try {
-        JdbcQuartzTestUtilities.createDatabase("MeSchedulerDatabase", DatabaseType.DERBY);
-    } catch (SQLException e) {
-      throw new AssertionError(e);
-    }
-
     Properties config = new Properties();
     config.setProperty("org.quartz.scheduler.instanceName", "MeScheduler");
     config.setProperty("org.quartz.scheduler.instanceId", "AUTO");
@@ -110,12 +101,11 @@ class SystemPropertyInstanceIdGeneratorTest  {
     config.setProperty("org.quartz.scheduler.instanceIdGenerator.systemPropertyName", "blah.blah");
     config.setProperty("org.quartz.threadPool.threadCount", "1");
     config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-    config.setProperty("org.quartz.jobStore.class", org.quartz.impl.jdbcjobstore.JobStoreTX.class.getName());
-    config.setProperty("org.quartz.jobStore.isClustered", "true");
-    config.setProperty("org.quartz.jobStore.dataSource", "MeSchedulerDatabase");
+    config.setProperty("org.quartz.jobStore.class", org.quartz.simpl.RAMJobStore.class.getName());
     
     Scheduler sched = new StdSchedulerFactory(config).getScheduler();    
     
     assertEquals("1goo2", sched.getSchedulerInstanceId());
+    sched.shutdown(true);
   }
 }

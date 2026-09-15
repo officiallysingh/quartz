@@ -21,7 +21,7 @@ package org.quartz;
 
 import java.io.Serializable;
 import java.util.Comparator;
-import java.util.Date;
+import java.time.Instant;
 
 
 
@@ -189,7 +189,7 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
     /**
      * Get the time at which the <code>Trigger</code> should occur.
      */
-    Date getStartTime();
+    Instant getStartTime();
 
     /**
      * Get the time at which the <code>Trigger</code> should quit repeating -
@@ -198,7 +198,7 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
      * 
      * @see #getFinalFireTime()
      */
-    Date getEndTime();
+    Instant getEndTime();
 
     /**
      * Returns the next time at which the <code>Trigger</code> is scheduled to fire. If
@@ -212,22 +212,22 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
      * has been added to the scheduler.
      * </p>
      *
-     * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, Calendar, java.util.Date, java.util.Date)
+     * @see TriggerUtils#computeFireTimesBetween(org.quartz.spi.OperableTrigger, Calendar, java.time.Instant, java.time.Instant)
      */
-    Date getNextFireTime();
+    Instant getNextFireTime();
 
     /**
      * Returns the previous time at which the <code>Trigger</code> fired.
      * If the trigger has not yet fired, <code>null</code> will be returned.
      */
-    Date getPreviousFireTime();
+    Instant getPreviousFireTime();
 
     /**
      * Returns the next time at which the <code>Trigger</code> will fire,
      * after the given time. If the trigger will not fire after the given time,
      * <code>null</code> will be returned.
      */
-    Date getFireTimeAfter(Date afterTime);
+    Instant getFireTimeAfter(Instant afterTime);
 
     /**
      * Returns the last time at which the <code>Trigger</code> will fire, if
@@ -237,7 +237,7 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
      * Note that the return time *may* be in the past.
      * </p>
      */
-    Date getFinalFireTime();
+    Instant getFinalFireTime();
 
     /**
      * Get the instruction the <code>Scheduler</code> should be given for
@@ -300,7 +300,7 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
         private static final long serialVersionUID = -3904243490805975570L;
         
         // This static method exists for comparator in TC clustered quartz
-        public static int compare(Date nextFireTime1, int priority1, TriggerKey key1, Date nextFireTime2, int priority2, TriggerKey key2) {
+        public static int compare(Instant nextFireTime1, int priority1, TriggerKey key1, Instant nextFireTime2, int priority2, TriggerKey key2) {
             if (nextFireTime1 != null || nextFireTime2 != null) {
                 if (nextFireTime1 == null) {
                     return 1;
@@ -310,11 +310,11 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
                     return -1;
                 }
 
-                if(nextFireTime1.before(nextFireTime2)) {
+                if(nextFireTime1.isBefore(nextFireTime2)) {
                     return -1;
                 }
 
-                if(nextFireTime1.after(nextFireTime2)) {
+                if(nextFireTime1.isAfter(nextFireTime2)) {
                     return 1;
                 }
             }

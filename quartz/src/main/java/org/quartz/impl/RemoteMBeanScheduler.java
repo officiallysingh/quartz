@@ -17,7 +17,7 @@
  */
 package org.quartz.impl;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -345,7 +345,7 @@ public abstract class RemoteMBeanScheduler implements Scheduler {
      * instance.
      * </p>
      */
-    public Date scheduleJob(JobDetail jobDetail, Trigger trigger)
+    public Instant scheduleJob(JobDetail jobDetail, Trigger trigger)
         throws SchedulerException {
         throw new SchedulerException("Operation not supported for remote schedulers.");
     }
@@ -357,7 +357,7 @@ public abstract class RemoteMBeanScheduler implements Scheduler {
      * instance.
      * </p>
      */
-    public Date scheduleJob(Trigger trigger) throws SchedulerException {
+    public Instant scheduleJob(Trigger trigger) throws SchedulerException {
         throw new SchedulerException("Operation not supported for remote schedulers.");
     }
 
@@ -445,7 +445,7 @@ public abstract class RemoteMBeanScheduler implements Scheduler {
      * instance.
      * </p>
      */
-    public Date rescheduleJob(TriggerKey triggerKey,
+    public Instant rescheduleJob(TriggerKey triggerKey,
             Trigger newTrigger) throws SchedulerException {
         throw new SchedulerException("Operation not supported for remote schedulers.");
     }

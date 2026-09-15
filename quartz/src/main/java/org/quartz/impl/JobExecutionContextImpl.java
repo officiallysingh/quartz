@@ -19,7 +19,7 @@
 
 package org.quartz.impl;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashMap;
 
 import org.quartz.Calendar;
@@ -62,13 +62,13 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
 
     private int numRefires = 0;
 
-    private final Date fireTime;
+    private final Instant fireTime;
 
-    private final Date scheduledFireTime;
+    private final Instant scheduledFireTime;
 
-    private final Date prevFireTime;
+    private final Instant prevFireTime;
 
-    private final Date nextFireTime;
+    private final Instant nextFireTime;
     
     private long jobRunTime = -1;
     
@@ -187,28 +187,28 @@ public class JobExecutionContextImpl implements java.io.Serializable, JobExecuti
     /**
      * {@inheritDoc}
      */
-    public Date getFireTime() {
+    public Instant getFireTime() {
         return fireTime;
     }
 
     /**
      * {@inheritDoc}
      */
-    public Date getScheduledFireTime() {
+    public Instant getScheduledFireTime() {
         return scheduledFireTime;
     }
 
     /**
      * {@inheritDoc}
      */
-    public Date getPreviousFireTime() {
+    public Instant getPreviousFireTime() {
         return prevFireTime;
     }
 
     /**
      * {@inheritDoc}
      */
-    public Date getNextFireTime() {
+    public Instant getNextFireTime() {
         return nextFireTime;
     }
 

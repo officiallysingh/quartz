@@ -16,39 +16,30 @@ publishing {
 
 dependencies {
     compileOnly project(':quartz-stubs')
-
-    implementation "org.slf4j:slf4j-api:$slf4jVersion"
-    runtimeOnly "org.slf4j:slf4j-log4j12:$slf4jVersion"
-    implementation "com.mchange:c3p0:$c3p0Version"
-    implementation "com.zaxxer:HikariCP:$hikaricpVersion"
     compileOnly "jboss:jboss-common:$jbossVersion"
     compileOnly "jboss:jboss-minimal:$jbossVersion"
     compileOnly "jboss:jboss-system:$jbossVersion"
     compileOnly "jboss:jboss-jmx:$jbossVersion"
     compileOnly "org.apache.geronimo.specs:geronimo-commonj_1.1_spec:$commonjVersion"
 
-    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.5'
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+    implementation "org.mongodb:mongodb-driver-sync:$mongodbDriverVersion"
 
-    compileOnly 'jakarta.transaction:jakarta.transaction-api:2.0.1'
-    testImplementation 'jakarta.transaction:jakarta.transaction-api:2.0.1'
-    compileOnly 'jakarta.servlet:jakarta.servlet-api:6.1.0'
+    implementation "jakarta.xml.bind:jakarta.xml.bind-api:$jakartaXmlBindVersion"
 
-    testImplementation "org.apache.derby:derby:$derbyVersion"
-    testImplementation "org.apache.derby:derbyclient:$derbyVersion"
-    testImplementation "org.apache.derby:derbynet:$derbyVersion"
-    testImplementation 'asm:asm:3.3.1'
-    testImplementation 'org.hamcrest:hamcrest:3.0'
-    testImplementation(platform("org.junit:junit-bom:5.11.4"))
-    testImplementation 'org.junit.jupiter:junit-jupiter-engine'
-    testImplementation 'org.junit.jupiter:junit-jupiter-params'
-    testImplementation 'org.mockito:mockito-core:5.14.2'
-    testImplementation "org.testcontainers:mssqlserver:$testcontainersVersion"
-    testImplementation "org.testcontainers:mariadb:$testcontainersVersion"
-    testImplementation "org.testcontainers:postgresql:$testcontainersVersion"
-    testImplementation 'com.microsoft.sqlserver:mssql-jdbc:13.4.0.jre11'
-    testImplementation 'org.mariadb.jdbc:mariadb-java-client:3.5.10'
-    testImplementation 'org.postgresql:postgresql:42.7.13'
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    compileOnly "jakarta.transaction:jakarta.transaction-api:$jakartaTransactionVersion"
+    testImplementation "jakarta.transaction:jakarta.transaction-api:$jakartaTransactionVersion"
+    compileOnly "jakarta.servlet:jakarta.servlet-api:$jakartaServletVersion"
+
+    testImplementation 'org.hamcrest:hamcrest:' + hamcrestVersion
+    testImplementation(platform("org.junit:junit-bom:$junitBomVersion"))
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation "org.mockito:mockito-core:$mockitoVersion"
+    testImplementation "org.testcontainers:mongodb:$testcontainersVersion"
+    testImplementation "org.testcontainers:junit-jupiter:$testcontainersVersion"
+    testImplementation "org.ow2.asm:asm:9.9"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly "ch.qos.logback:logback-classic:$logbackVersion"
 }
 
 test {

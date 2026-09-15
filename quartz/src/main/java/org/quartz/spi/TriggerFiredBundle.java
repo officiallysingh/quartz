@@ -18,7 +18,7 @@
 
 package org.quartz.spi;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.quartz.Calendar;
 import org.quartz.JobDetail;
@@ -53,13 +53,13 @@ public class TriggerFiredBundle implements java.io.Serializable {
 
     private final boolean jobIsRecovering;
 
-    private final Date fireTime;
+    private final Instant fireTime;
 
-    private final Date scheduledFireTime;
+    private final Instant scheduledFireTime;
 
-    private final Date prevFireTime;
+    private final Instant prevFireTime;
 
-    private final Date nextFireTime;
+    private final Instant nextFireTime;
 
     /*
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -70,8 +70,8 @@ public class TriggerFiredBundle implements java.io.Serializable {
      */
 
     public TriggerFiredBundle(JobDetail job, OperableTrigger trigger, Calendar cal,
-            boolean jobIsRecovering, Date fireTime, Date scheduledFireTime,
-            Date prevFireTime, Date nextFireTime) {
+            boolean jobIsRecovering, Instant fireTime, Instant scheduledFireTime,
+            Instant prevFireTime, Instant nextFireTime) {
         this.job = job;
         this.trigger = trigger;
         this.cal = cal;
@@ -109,28 +109,28 @@ public class TriggerFiredBundle implements java.io.Serializable {
     /**
      * @return Returns the fireTime.
      */
-    public Date getFireTime() {
+    public Instant getFireTime() {
         return fireTime;
     }
 
     /**
      * @return Returns the nextFireTime.
      */
-    public Date getNextFireTime() {
+    public Instant getNextFireTime() {
         return nextFireTime;
     }
 
     /**
      * @return Returns the prevFireTime.
      */
-    public Date getPrevFireTime() {
+    public Instant getPrevFireTime() {
         return prevFireTime;
     }
 
     /**
      * @return Returns the scheduledFireTime.
      */
-    public Date getScheduledFireTime() {
+    public Instant getScheduledFireTime() {
         return scheduledFireTime;
     }
 

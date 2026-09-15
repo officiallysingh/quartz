@@ -27,7 +27,7 @@ import static org.quartz.TriggerBuilder.newTrigger;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Properties;
 
@@ -77,7 +77,7 @@ class QTZ336_MissSchedulingChangeSignalTest {
 
         SimpleTrigger trigger = newTrigger()
 	            .withIdentity("trigger1", "group1")
-                .startAt(new Date(System.currentTimeMillis() + 1000))
+                .startAt(Instant.ofEpochMilli(System.currentTimeMillis() + 1000))
 	            .withSchedule(simpleSchedule()
                 .withIntervalInSeconds(1)
 	            .repeatForever()
@@ -124,12 +124,12 @@ class QTZ336_MissSchedulingChangeSignalTest {
         private static Long lastFireTime = null;
 
         public void execute(JobExecutionContext context) throws JobExecutionException {
-            Date now = new Date();
+            Instant now = Instant.now();
             log.info("Fire time: " + now);
             if (lastFireTime != null) {
-                durationBetweenFireTimes.add(now.getTime() - lastFireTime);
+                durationBetweenFireTimes.add(now.toEpochMilli() - lastFireTime);
             }
-            lastFireTime = now.getTime();
+            lastFireTime = now.toEpochMilli();
         }
 
         /**

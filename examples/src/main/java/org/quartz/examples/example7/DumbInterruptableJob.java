@@ -18,7 +18,7 @@
  
 package org.quartz.examples.example7;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +70,7 @@ public class DumbInterruptableJob implements InterruptableJob {
         throws JobExecutionException {
 
         _jobKey = context.getJobDetail().getKey();
-        _log.info("---- " + _jobKey + " executing at " + new Date());
+        _log.info("---- " + _jobKey + " executing at " + Instant.now());
 
         try {
             // main job loop... see the JavaDOC for InterruptableJob for discussion...
@@ -93,7 +93,7 @@ public class DumbInterruptableJob implements InterruptableJob {
             }
             
         } finally {
-            _log.info("---- " + _jobKey + " completed at " + new Date());
+            _log.info("---- " + _jobKey + " completed at " + Instant.now());
         }
     }
     

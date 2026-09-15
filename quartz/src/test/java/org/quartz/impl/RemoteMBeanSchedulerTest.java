@@ -45,7 +45,7 @@ import org.quartz.impl.matchers.GroupMatcher;
 
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Properties;
 
 import javax.management.AttributeList;
@@ -78,7 +78,7 @@ public class RemoteMBeanSchedulerTest {
         scheduler = new StdSchedulerFactory(props).getScheduler();
 
         JobDetail jobDetail = newJob(HelloJob.class).withIdentity(JOB_KEY, GROUP_KEY).build();
-        Trigger trigger = newTrigger().withIdentity(TRIGGER_KEY, GROUP_KEY).startAt(new Date()).build();
+        Trigger trigger = newTrigger().withIdentity(TRIGGER_KEY, GROUP_KEY).startAt(Instant.now()).build();
 
         scheduler.addCalendar(CALENDAR_KEY, new BaseCalendar(), false, false);
 

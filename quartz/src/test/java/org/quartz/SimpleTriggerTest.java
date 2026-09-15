@@ -18,7 +18,7 @@ package org.quartz;
 
 import java.text.ParseException;
 import java.util.Calendar;
-import java.util.Date;
+import java.time.Instant;
 import java.util.TimeZone;
 
 import org.junit.jupiter.api.Test;
@@ -58,8 +58,8 @@ public class SimpleTriggerTest extends SerializationTestSupport {
         jobDataMap.put("A", "B");
         
         SimpleTriggerImpl t = new SimpleTriggerImpl("SimpleTrigger", "SimpleGroup",
-                "JobName", "JobGroup", START_TIME.getTime(),
-                END_TIME.getTime(), 5, 1000);
+                "JobName", "JobGroup", START_TIME.toInstant(),
+                END_TIME.toInstant(), 5, 1000);
         t.setCalendarName("MyCalendar");
         t.setDescription("SimpleTriggerDesc");
         t.setJobDataMap(jobDataMap);
@@ -112,24 +112,24 @@ public class SimpleTriggerTest extends SerializationTestSupport {
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
         simpleTrigger.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT);
         simpleTrigger.setRepeatCount(5);
-        simpleTrigger.setStartTime(startTime.getTime());
-        simpleTrigger.setEndTime(endTime.getTime());
+        simpleTrigger.setStartTime(startTime.toInstant());
+        simpleTrigger.setEndTime(endTime.toInstant());
         
         simpleTrigger.updateAfterMisfire(null);
-        assertEquals(startTime.getTime(), simpleTrigger.getStartTime());
-        assertEquals(endTime.getTime(), simpleTrigger.getEndTime());
+        assertEquals(startTime.toInstant(), simpleTrigger.getStartTime());
+        assertEquals(endTime.toInstant(), simpleTrigger.getEndTime());
         assertNull(simpleTrigger.getNextFireTime());
     }
     @Test
     void testGetFireTimeAfter() {
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
-        simpleTrigger.setStartTime(new Date(0));
+        simpleTrigger.setStartTime(Instant.ofEpochMilli(0));
         simpleTrigger.setRepeatInterval(10);
         simpleTrigger.setRepeatCount(4);
         
-        Date fireTimeAfter = simpleTrigger.getFireTimeAfter(new Date(34));
-        assertEquals(40, fireTimeAfter.getTime());
+        Instant fireTimeAfter = simpleTrigger.getFireTimeAfter(Instant.ofEpochMilli(34));
+        assertEquals(40, fireTimeAfter.toEpochMilli());
     }
     @Test
     void testClone() {
