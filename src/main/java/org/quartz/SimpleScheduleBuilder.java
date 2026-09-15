@@ -18,6 +18,7 @@
 
 package org.quartz;
 
+import java.time.Duration;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
 
@@ -258,6 +259,27 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
    */
   public SimpleScheduleBuilder withIntervalInMilliseconds(long intervalInMillis) {
     this.interval = intervalInMillis;
+    return this;
+  }
+
+  /**
+   * Specify a repeat interval as a {@link Duration}.
+   *
+   * <p>Negative durations are rejected. Sub-millisecond nanos are truncated toward zero when
+   * converting to the millisecond-based simple trigger interval.
+   *
+   * @param duration the interval at which the trigger should repeat
+   * @return the updated SimpleScheduleBuilder
+   * @see SimpleTrigger#getRepeatInterval()
+   */
+  public SimpleScheduleBuilder withInterval(Duration duration) {
+    if (duration == null) {
+      throw new IllegalArgumentException("Duration must be specified.");
+    }
+    if (duration.isNegative()) {
+      throw new IllegalArgumentException("Duration must not be negative.");
+    }
+    this.interval = duration.toMillis();
     return this;
   }
 

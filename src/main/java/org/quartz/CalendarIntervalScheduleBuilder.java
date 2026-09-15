@@ -18,6 +18,8 @@
 
 package org.quartz;
 
+import java.time.Duration;
+import java.time.Period;
 import java.util.TimeZone;
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
@@ -116,6 +118,76 @@ public class CalendarIntervalScheduleBuilder extends ScheduleBuilder<CalendarInt
     this.interval = timeInterval;
     this.intervalUnit = unit;
     return this;
+  }
+
+  /**
+   * Specify a calendar-unit interval as a {@link Period}.
+   *
+   * <p>The period must contain exactly one non-zero component among years, months, and days.
+   * Zero/negative values are rejected. Days that are a positive multiple of 7 are stored as {@link
+   * IntervalUnit#WEEK} (because {@link Period#ofWeeks(int)} normalizes to days).
+   *
+   * @param period the calendar interval
+   * @return the updated CalendarIntervalScheduleBuilder
+   */
+  public CalendarIntervalScheduleBuilder withInterval(Period period) {
+    if (period == null) {
+      throw new IllegalArgumentException("Period must be specified.");
+    }
+    int years = period.getYears();
+    int months = period.getMonths();
+    int days = period.getDays();
+    int nonZero = (years != 0 ? 1 : 0) + (months != 0 ? 1 : 0) + (days != 0 ? 1 : 0);
+    if (nonZero != 1) {
+      throw new IllegalArgumentException(
+          "Period must contain exactly one non-zero component (years, months, or days).");
+    }
+    if (years < 0 || months < 0 || days < 0) {
+      throw new IllegalArgumentException("Period components must be positive.");
+    }
+    if (years > 0) {
+      return withIntervalInYears(years);
+    }
+    if (months > 0) {
+      return withIntervalInMonths(months);
+    }
+    if (days % 7 == 0) {
+      return withIntervalInWeeks(days / 7);
+    }
+    return withIntervalInDays(days);
+  }
+
+  /**
+   * Specify a time-of-day interval as a {@link Duration} (whole seconds, minutes, or hours).
+   *
+   * <p>The duration must be positive, have no nano-of-second remainder, and resolve to a whole
+   * number of seconds. Values divisible by 3600 use {@link IntervalUnit#HOUR}; otherwise values
+   * divisible by 60 use {@link IntervalUnit#MINUTE}; otherwise {@link IntervalUnit#SECOND}.
+   *
+   * @param duration the interval
+   * @return the updated CalendarIntervalScheduleBuilder
+   */
+  public CalendarIntervalScheduleBuilder withInterval(Duration duration) {
+    if (duration == null) {
+      throw new IllegalArgumentException("Duration must be specified.");
+    }
+    if (duration.isNegative() || duration.isZero()) {
+      throw new IllegalArgumentException("Duration must be a positive value.");
+    }
+    if (duration.getNano() != 0) {
+      throw new IllegalArgumentException("Duration must be a whole number of seconds.");
+    }
+    long seconds = duration.getSeconds();
+    if (seconds > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("Duration is too large.");
+    }
+    if (seconds % 3600 == 0) {
+      return withIntervalInHours((int) (seconds / 3600));
+    }
+    if (seconds % 60 == 0) {
+      return withIntervalInMinutes((int) (seconds / 60));
+    }
+    return withIntervalInSeconds((int) seconds);
   }
 
   /**

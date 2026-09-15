@@ -19,14 +19,19 @@
 package org.quartz;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Month;
+import java.time.Period;
 import java.time.Year;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
 
 /**
  * <code>DateBuilder</code> is used to conveniently create <code>java.time.Instant</code> instances
@@ -236,6 +241,15 @@ public class DateBuilder {
     return this;
   }
 
+  /** Set the month for the Instant that will be built by this builder. */
+  public DateBuilder inMonth(Month inMonth) {
+    if (inMonth == null) {
+      throw new IllegalArgumentException("Month must be specified.");
+    }
+    this.month = inMonth.getValue();
+    return this;
+  }
+
   public DateBuilder inMonthOnDay(int inMonth, int onDay) {
     validateMonth(inMonth);
     validateDayOfMonth(onDay);
@@ -243,6 +257,13 @@ public class DateBuilder {
     this.month = inMonth;
     this.day = onDay;
     return this;
+  }
+
+  public DateBuilder inMonthOnDay(Month inMonth, int onDay) {
+    if (inMonth == null) {
+      throw new IllegalArgumentException("Month must be specified.");
+    }
+    return inMonthOnDay(inMonth.getValue(), onDay);
   }
 
   /** Set the year for the Date that will be built by this builder. */
@@ -268,6 +289,44 @@ public class DateBuilder {
 
   static Instant futureDate(int interval, IntervalUnit unit, Clock clock) {
     return (ZonedDateTime.now(clock).plus(interval, translate(unit)).toInstant());
+  }
+
+  /** Instant that is {@code amount} after now (e.g. {@link Duration} or {@link Period}). */
+  public static Instant futureDate(TemporalAmount amount) {
+    return futureDate(amount, Clock.systemDefaultZone());
+  }
+
+  static Instant futureDate(TemporalAmount amount, Clock clock) {
+    if (amount == null) {
+      throw new IllegalArgumentException("TemporalAmount must be specified.");
+    }
+    return ZonedDateTime.now(clock).plus(amount).toInstant();
+  }
+
+  public static Instant futureDate(Duration duration) {
+    return futureDate((TemporalAmount) duration);
+  }
+
+  public static Instant futureDate(Period period) {
+    return futureDate((TemporalAmount) period);
+  }
+
+  /**
+   * Convert {@link DayOfWeek} to Quartz/Calendar day-of-week (Sunday=1 … Saturday=7).
+   *
+   * <p>{@link DayOfWeek} uses ISO numbering (Monday=1 … Sunday=7).
+   */
+  public static int toQuartzDayOfWeek(DayOfWeek dayOfWeek) {
+    if (dayOfWeek == null) {
+      throw new IllegalArgumentException("DayOfWeek must be specified.");
+    }
+    return dayOfWeek.getValue() % 7 + 1;
+  }
+
+  /** Convert Quartz/Calendar day-of-week (Sunday=1 … Saturday=7) to {@link DayOfWeek}. */
+  public static DayOfWeek toDayOfWeek(int quartzDayOfWeek) {
+    validateDayOfWeek(quartzDayOfWeek);
+    return DayOfWeek.of(quartzDayOfWeek == 1 ? 7 : quartzDayOfWeek - 1);
   }
 
   private static ChronoUnit translate(IntervalUnit unit) {
@@ -305,6 +364,13 @@ public class DateBuilder {
     return tomorrowAt(hour, minute, second, Clock.systemDefaultZone());
   }
 
+  public static Instant tomorrowAt(LocalTime time) {
+    if (time == null) {
+      throw new IllegalArgumentException("LocalTime must be specified.");
+    }
+    return tomorrowAt(time.getHour(), time.getMinute(), time.getSecond());
+  }
+
   static Instant tomorrowAt(int hour, int minute, int second, Clock clock) {
     return (ZonedDateTime.now(clock)
         .truncatedTo(ChronoUnit.DAYS)
@@ -326,6 +392,13 @@ public class DateBuilder {
     return todayAt(hour, minute, second, Clock.systemDefaultZone());
   }
 
+  public static Instant todayAt(LocalTime time) {
+    if (time == null) {
+      throw new IllegalArgumentException("LocalTime must be specified.");
+    }
+    return todayAt(time.getHour(), time.getMinute(), time.getSecond());
+  }
+
   static Instant todayAt(int hour, int minute, int second, Clock clock) {
     return dateOf(hour, minute, second, clock);
   }
@@ -341,6 +414,13 @@ public class DateBuilder {
    */
   public static Instant dateOf(int hour, int minute, int second) {
     return dateOf(hour, minute, second, Clock.systemDefaultZone());
+  }
+
+  public static Instant dateOf(LocalTime time) {
+    if (time == null) {
+      throw new IllegalArgumentException("LocalTime must be specified.");
+    }
+    return dateOf(time.getHour(), time.getMinute(), time.getSecond());
   }
 
   static Instant dateOf(int hour, int minute, int second, Clock clock) {
@@ -359,6 +439,16 @@ public class DateBuilder {
    */
   public static Instant dateOf(int hour, int minute, int second, int dayOfMonth, int month) {
     return dateOf(hour, minute, second, dayOfMonth, month, Clock.systemDefaultZone());
+  }
+
+  public static Instant dateOf(LocalTime time, int dayOfMonth, Month month) {
+    if (time == null) {
+      throw new IllegalArgumentException("LocalTime must be specified.");
+    }
+    if (month == null) {
+      throw new IllegalArgumentException("Month must be specified.");
+    }
+    return dateOf(time.getHour(), time.getMinute(), time.getSecond(), dayOfMonth, month.getValue());
   }
 
   static Instant dateOf(int hour, int minute, int second, int dayOfMonth, int month, Clock clock) {
@@ -381,6 +471,17 @@ public class DateBuilder {
   public static Instant dateOf(
       int hour, int minute, int second, int dayOfMonth, int month, int year) {
     return dateOf(hour, minute, second, dayOfMonth, month, year, Clock.systemDefaultZone());
+  }
+
+  public static Instant dateOf(LocalTime time, int dayOfMonth, Month month, int year) {
+    if (time == null) {
+      throw new IllegalArgumentException("LocalTime must be specified.");
+    }
+    if (month == null) {
+      throw new IllegalArgumentException("Month must be specified.");
+    }
+    return dateOf(
+        time.getHour(), time.getMinute(), time.getSecond(), dayOfMonth, month.getValue(), year);
   }
 
   static Instant dateOf(

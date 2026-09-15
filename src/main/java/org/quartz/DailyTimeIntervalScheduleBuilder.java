@@ -17,6 +17,8 @@
  */
 package org.quartz;
 
+import java.time.DayOfWeek;
+import java.time.Duration;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -177,6 +179,39 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
   }
 
   /**
+   * Specify the daily interval as a {@link Duration} (whole seconds, minutes, or hours).
+   *
+   * <p>The duration must be positive, have no nano-of-second remainder, and resolve to a whole
+   * number of seconds. Values divisible by 3600 use {@link IntervalUnit#HOUR}; otherwise values
+   * divisible by 60 use {@link IntervalUnit#MINUTE}; otherwise {@link IntervalUnit#SECOND}.
+   *
+   * @param duration the interval
+   * @return the updated DailyTimeIntervalScheduleBuilder
+   */
+  public DailyTimeIntervalScheduleBuilder withInterval(Duration duration) {
+    if (duration == null) {
+      throw new IllegalArgumentException("Duration must be specified.");
+    }
+    if (duration.isNegative() || duration.isZero()) {
+      throw new IllegalArgumentException("Duration must be a positive value.");
+    }
+    if (duration.getNano() != 0) {
+      throw new IllegalArgumentException("Duration must be a whole number of seconds.");
+    }
+    long seconds = duration.getSeconds();
+    if (seconds > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("Duration is too large.");
+    }
+    if (seconds % 3600 == 0) {
+      return withIntervalInHours((int) (seconds / 3600));
+    }
+    if (seconds % 60 == 0) {
+      return withIntervalInMinutes((int) (seconds / 60));
+    }
+    return withIntervalInSeconds((int) seconds);
+  }
+
+  /**
    * Specify an interval in the IntervalUnit.SECOND that the produced Trigger will repeat at.
    *
    * @param intervalInSeconds the number of seconds at which the trigger should repeat.
@@ -245,6 +280,26 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
   public DailyTimeIntervalScheduleBuilder onDaysOfTheWeek(Integer... onDaysOfWeek) {
     Set<Integer> daysAsSet = new HashSet<>(12);
     Collections.addAll(daysAsSet, onDaysOfWeek);
+    return onDaysOfTheWeek(daysAsSet);
+  }
+
+  /**
+   * Set the trigger to fire on the given {@link DayOfWeek} values (ISO Monday–Sunday).
+   *
+   * <p>Converted to Quartz/Calendar day numbers via {@link
+   * DateBuilder#toQuartzDayOfWeek(DayOfWeek)}.
+   *
+   * @param onDaysOfWeek days of the week
+   * @return the updated DailyTimeIntervalScheduleBuilder
+   */
+  public DailyTimeIntervalScheduleBuilder onDaysOfTheWeek(DayOfWeek... onDaysOfWeek) {
+    if (onDaysOfWeek == null || onDaysOfWeek.length == 0) {
+      throw new IllegalArgumentException("Days of week must be an non-empty set.");
+    }
+    Set<Integer> daysAsSet = new HashSet<>(onDaysOfWeek.length);
+    for (DayOfWeek day : onDaysOfWeek) {
+      daysAsSet.add(DateBuilder.toQuartzDayOfWeek(day));
+    }
     return onDaysOfTheWeek(daysAsSet);
   }
 

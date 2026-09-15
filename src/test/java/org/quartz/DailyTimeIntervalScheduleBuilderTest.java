@@ -282,6 +282,24 @@ public class DailyTimeIntervalScheduleBuilderTest {
     }
   }
 
+  @Test
+  void testWithIntervalDurationAndDayOfWeek() {
+    DailyTimeIntervalTrigger trigger =
+        newTrigger()
+            .withIdentity("test")
+            .withSchedule(
+                dailyTimeIntervalSchedule()
+                    .withInterval(java.time.Duration.ofMinutes(15))
+                    .onDaysOfTheWeek(java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.FRIDAY))
+            .build();
+
+    assertEquals(15, trigger.getRepeatInterval());
+    assertEquals(IntervalUnit.MINUTE, trigger.getRepeatIntervalUnit());
+    assertTrue(trigger.getDaysOfWeek().contains(java.util.Calendar.MONDAY));
+    assertTrue(trigger.getDaysOfWeek().contains(java.util.Calendar.FRIDAY));
+    assertEquals(2, trigger.getDaysOfWeek().size());
+  }
+
   /** An empty job for testing purpose. */
   public static class MyJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {

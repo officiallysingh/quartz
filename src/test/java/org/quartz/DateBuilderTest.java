@@ -715,4 +715,61 @@ class DateBuilderTest {
   void testValidateYear(int year) {
     assertDoesNotThrow(() -> DateBuilder.validateYear(year));
   }
+
+  @Test
+  void testFutureDateWithDurationAndPeriod() {
+    var clock = Clock.fixed(Instant.parse("2007-12-03T10:15:30.000Z"), ZoneOffset.UTC);
+
+    assertEquals(
+        Instant.parse("2007-12-03T10:25:30.000Z"),
+        DateBuilder.futureDate(java.time.Duration.ofMinutes(10), clock));
+    assertEquals(
+        Instant.parse("2008-01-03T10:15:30.000Z"),
+        DateBuilder.futureDate(java.time.Period.ofMonths(1), clock));
+  }
+
+  @Test
+  void testDayOfWeekConversion() {
+    assertEquals(1, DateBuilder.toQuartzDayOfWeek(java.time.DayOfWeek.SUNDAY));
+    assertEquals(2, DateBuilder.toQuartzDayOfWeek(java.time.DayOfWeek.MONDAY));
+    assertEquals(7, DateBuilder.toQuartzDayOfWeek(java.time.DayOfWeek.SATURDAY));
+
+    assertEquals(java.time.DayOfWeek.SUNDAY, DateBuilder.toDayOfWeek(1));
+    assertEquals(java.time.DayOfWeek.MONDAY, DateBuilder.toDayOfWeek(2));
+    assertEquals(java.time.DayOfWeek.SATURDAY, DateBuilder.toDayOfWeek(7));
+  }
+
+  @Test
+  void testBuilderWithMonthEnum() {
+    var expected = ZonedDateTime.of(2013, 7, 1, 10, 30, 0, 0, ZoneId.systemDefault()).toInstant();
+
+    assertEquals(
+        expected,
+        newDate()
+            .inYear(2013)
+            .inMonth(java.time.Month.JULY)
+            .onDay(1)
+            .atHourMinuteAndSecond(10, 30, 0)
+            .build());
+    assertEquals(
+        expected,
+        newDate()
+            .inYear(2013)
+            .inMonthOnDay(java.time.Month.JULY, 1)
+            .atHourMinuteAndSecond(10, 30, 0)
+            .build());
+  }
+
+  @Test
+  void testDateOfAndTodayAtWithLocalTime() {
+    var clock = Clock.fixed(Instant.parse("2007-12-03T08:13:54.341Z"), ZoneOffset.UTC);
+    var time = java.time.LocalTime.of(1, 1, 1);
+
+    assertEquals(
+        DateBuilder.todayAt(1, 1, 1, clock),
+        DateBuilder.dateOf(time.getHour(), time.getMinute(), time.getSecond(), clock));
+    assertEquals(
+        DateBuilder.dateOf(10, 30, 0, 1, 7, 2013),
+        DateBuilder.dateOf(java.time.LocalTime.of(10, 30, 0), 1, java.time.Month.JULY, 2013));
+  }
 }
