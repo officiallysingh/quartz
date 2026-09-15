@@ -16,25 +16,23 @@
  */
 package org.quartz.impl;
 
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Properties;
-
 import org.junit.jupiter.api.Test;
 import org.slf4j.helpers.NOPLogger;
 
 class StdSchedulerFactoryTest {
 
-	@Test
-	void testOverrideSystemProperties() {
-	    Properties p = new Properties();
-	    p.setProperty("nonsense1", "hello1");
-	    p.setProperty("nonsense2", "hello2");
-	    System.setProperty("nonsense1", "boo1");
-	    String osName = System.getProperty("os.name");
-	    Properties q = StdSchedulerFactory.overrideWithSysProps(p, NOPLogger.NOP_LOGGER);
-	    assertEquals("boo1", q.get("nonsense1"));
-	    assertEquals(osName, q.get("os.name"));
-	}
+  @Test
+  void testOverrideSystemProperties() {
+    Properties p = new Properties();
+    p.setProperty("nonsense1", "hello1");
+    p.setProperty("nonsense2", "hello2");
+    System.setProperty("nonsense1", "boo1");
+    String osName = System.getProperty("os.name");
+    Properties q = StdSchedulerFactory.overrideWithSysProps(p, NOPLogger.NOP_LOGGER);
+    assertEquals("boo1", q.get("nonsense1"));
+    assertEquals(osName, q.get("os.name"));
+  }
 }

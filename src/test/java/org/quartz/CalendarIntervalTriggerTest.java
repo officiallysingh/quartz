@@ -1,525 +1,550 @@
-/* 
+/*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  * Copyright IBM Corp. 2024, 2025
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
  */
 package org.quartz;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
-
 import java.text.ParseException;
-import java.util.Calendar;
 import java.time.Instant;
+import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
-
 import org.junit.jupiter.api.Test;
 import org.quartz.DateBuilder.IntervalUnit;
 import org.quartz.impl.calendar.BaseCalendar;
 import org.quartz.impl.triggers.CalendarIntervalTriggerImpl;
 
-/**
- * Unit tests for DateIntervalTrigger.
- */
-public class CalendarIntervalTriggerTest  extends SerializationTestSupport {
-    
-    private static final String[] VERSIONS = new String[] {"2.0"};
+/** Unit tests for DateIntervalTrigger. */
+public class CalendarIntervalTriggerTest extends SerializationTestSupport {
 
-    @Test
-    void testQTZ331FireTimeAfterBoundary() {
-        Calendar start = Calendar.getInstance();
-        start.clear();
-        start.set(2013, Calendar.FEBRUARY, 15);
+  private static final String[] VERSIONS = new String[] {"2.0"};
 
-        Instant startTime = start.toInstant();
-        start.add(Calendar.DAY_OF_MONTH, 1);
-        Instant triggerTime = start.toInstant();
+  @Test
+  void testQTZ331FireTimeAfterBoundary() {
+    Calendar start = Calendar.getInstance();
+    start.clear();
+    start.set(2013, Calendar.FEBRUARY, 15);
 
-        CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl("test", startTime, null, IntervalUnit.DAY, 1);
-        assertThat(trigger.getFireTimeAfter(startTime), equalTo(triggerTime));
+    Instant startTime = start.toInstant();
+    start.add(Calendar.DAY_OF_MONTH, 1);
+    Instant triggerTime = start.toInstant();
 
+    CalendarIntervalTriggerImpl trigger =
+        new CalendarIntervalTriggerImpl("test", startTime, null, IntervalUnit.DAY, 1);
+    assertThat(trigger.getFireTimeAfter(startTime), equalTo(triggerTime));
 
-        Instant after = Instant.ofEpochMilli(start.getTimeInMillis() - 500);
-        assertThat(trigger.getFireTimeAfter(after), equalTo(triggerTime));
+    Instant after = Instant.ofEpochMilli(start.getTimeInMillis() - 500);
+    assertThat(trigger.getFireTimeAfter(after), equalTo(triggerTime));
+  }
+
+  void testQTZ330DaylightSavingsCornerCase() {
+    TimeZone edt = TimeZone.getTimeZone("America/New_York");
+
+    Calendar start = Calendar.getInstance();
+    start.clear();
+    start.setTimeZone(edt);
+    start.set(2012, Calendar.MARCH, 16, 2, 30, 0);
+
+    Calendar after = Calendar.getInstance();
+    after.clear();
+    after.setTimeZone(edt);
+    after.set(2013, Calendar.APRIL, 19, 2, 30, 0);
+
+    BaseCalendar baseCalendar = new BaseCalendar(edt);
+
+    CalendarIntervalTriggerImpl intervalTrigger =
+        new CalendarIntervalTriggerImpl(
+            "QTZ-330", start.toInstant(), null, DateBuilder.IntervalUnit.DAY, 1);
+    intervalTrigger.setTimeZone(edt);
+    intervalTrigger.setPreserveHourOfDayAcrossDaylightSavings(true);
+    intervalTrigger.computeFirstFireTime(baseCalendar);
+
+    Instant fireTime = intervalTrigger.getFireTimeAfter(after.toInstant());
+    assertThat(fireTime.isAfter(after.toInstant()), is(true));
+  }
+
+  @Test
+  void testYearlyIntervalGetFireTimeAfter() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
+    yearlyTrigger.setStartTime(startCalendar.toInstant());
+    yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.YEAR);
+    yearlyTrigger.setRepeatInterval(2); // every two years;
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.set(2009, Calendar.JUNE, 1, 9, 30, 17); // jump 4 years (2 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 4);
+    Instant secondTime = fireTimes.get(2); // get the third fire time
+
+    assertEquals(targetCalendar.toInstant(), secondTime, "Year increment result not as expected.");
+  }
+
+  @Test
+  void testMonthlyIntervalGetFireTimeAfter() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
+    yearlyTrigger.setStartTime(startCalendar.toInstant());
+    yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MONTH);
+    yearlyTrigger.setRepeatInterval(5); // every five months
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.MONTH, 25); // jump 25 five months (5 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
+    Instant fifthTime = fireTimes.get(5); // get the sixth fire time
+
+    assertEquals(targetCalendar.toInstant(), fifthTime, "Month increment result not as expected.");
+  }
+
+  @Test
+  void testWeeklyIntervalGetFireTimeAfter() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
+    yearlyTrigger.setStartTime(startCalendar.toInstant());
+    yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.WEEK);
+    yearlyTrigger.setRepeatInterval(6); // every six weeks
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 7 * 6 * 4); // jump 24 weeks (4 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 7);
+    Instant fifthTime = fireTimes.get(4); // get the fifth fire time
+
+    assertEquals(targetCalendar.toInstant(), fifthTime, "Week increment result not as expected.");
+  }
+
+  @Test
+  void testDailyIntervalGetFireTimeAfter() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(90); // every ninety days
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 360); // jump 360 days (4 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
+    Instant fifthTime = fireTimes.get(4); // get the fifth fire time
+
+    assertEquals(targetCalendar.toInstant(), fifthTime, "Day increment result not as expected.");
+  }
+
+  @Test
+  void testHourlyIntervalGetFireTimeAfter() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
+    yearlyTrigger.setStartTime(startCalendar.toInstant());
+    yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
+    yearlyTrigger.setRepeatInterval(100); // every 100 hours
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.HOUR, 400); // jump 400 hours (4 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
+    Instant fifthTime = fireTimes.get(4); // get the fifth fire time
+
+    assertEquals(targetCalendar.toInstant(), fifthTime, "Hour increment result not as expected.");
+  }
+
+  @Test
+  void testMinutelyIntervalGetFireTimeAfter() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
+    yearlyTrigger.setStartTime(startCalendar.toInstant());
+    yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
+    yearlyTrigger.setRepeatInterval(100); // every 100 minutes
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.MINUTE, 400); // jump 400 minutes (4 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
+    Instant fifthTime = fireTimes.get(4); // get the fifth fire time
+
+    assertEquals(
+        targetCalendar.toInstant(), fifthTime, "Minutes increment result not as expected.");
+  }
+
+  @Test
+  void testSecondlyIntervalGetFireTimeAfter() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
+    yearlyTrigger.setStartTime(startCalendar.toInstant());
+    yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.SECOND);
+    yearlyTrigger.setRepeatInterval(100); // every 100 seconds
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.SECOND, 400); // jump 400 seconds (4 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
+    Instant fifthTime = fireTimes.get(4); // get the third fire time
+
+    assertEquals(
+        targetCalendar.toInstant(), fifthTime, "Seconds increment result not as expected.");
+  }
+
+  @Test
+  void testDaylightSavingsTransitions() {
+
+    // Pick a day before a spring daylight savings transition...
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2010, Calendar.MARCH, 12, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(5); // every 5 days
+
+    Calendar targetCalendar = Calendar.getInstance();
+    targetCalendar.setTime(startCalendar.getTime());
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 10); // jump 10 days (2 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
+    Instant testTime = fireTimes.get(2); // get the third fire time
+
+    assertEquals(
+        targetCalendar.toInstant(),
+        testTime,
+        "Day increment result not as expected over spring 2010 daylight savings transition.");
+
+    // And again, Pick a day before a spring daylight savings transition... (QTZ-240)
+
+    startCalendar = Calendar.getInstance();
+    startCalendar.set(2011, Calendar.MARCH, 12, 1, 0, 0);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(1); // every day
+
+    targetCalendar = Calendar.getInstance();
+    targetCalendar.setTime(startCalendar.getTime());
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 2); // jump 2 days (2 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
+    testTime = fireTimes.get(2); // get the third fire time
+
+    assertEquals(
+        targetCalendar.toInstant(),
+        testTime,
+        "Day increment result not as expected over spring 2011 daylight savings transition.");
+
+    // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove
+    // time of day is not preserved without setPreserveHourOfDayAcrossDaylightSavings(true)
+
+    startCalendar = Calendar.getInstance();
+    startCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
+    startCalendar.set(2011, Calendar.MARCH, 26, 4, 0, 0);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(1); // every day
+    dailyTrigger.setTimeZone(TimeZone.getTimeZone("EST"));
+
+    targetCalendar = Calendar.getInstance();
+    targetCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
+    targetCalendar.setTime(startCalendar.getTime());
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 2); // jump 2 days (2 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
+
+    testTime = fireTimes.get(2); // get the third fire time
+
+    Calendar testCal = Calendar.getInstance(TimeZone.getTimeZone("CET"));
+    testCal.setTimeInMillis(testTime.toEpochMilli());
+
+    assertNotEquals(
+        targetCalendar.get(Calendar.HOUR_OF_DAY),
+        testCal.get(Calendar.HOUR_OF_DAY),
+        "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
+
+    // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove
+    // time of day is preserved with setPreserveHourOfDayAcrossDaylightSavings(true)
+
+    startCalendar = Calendar.getInstance();
+    startCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
+    startCalendar.set(2011, Calendar.MARCH, 26, 4, 0, 0);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(1); // every day
+    dailyTrigger.setTimeZone(TimeZone.getTimeZone("CET"));
+    dailyTrigger.setPreserveHourOfDayAcrossDaylightSavings(true);
+
+    targetCalendar = Calendar.getInstance();
+    targetCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
+    targetCalendar.setTime(startCalendar.getTime());
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 2); // jump 2 days (2 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
+
+    testTime = fireTimes.get(2); // get the third fire time
+
+    testCal = Calendar.getInstance(TimeZone.getTimeZone("CET"));
+    testCal.setTimeInMillis(testTime.toEpochMilli());
+
+    assertEquals(
+        targetCalendar.get(Calendar.HOUR_OF_DAY),
+        testCal.get(Calendar.HOUR_OF_DAY),
+        "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
+
+    // Pick a day before a fall daylight savings transition...
+
+    startCalendar = Calendar.getInstance();
+    startCalendar.set(2010, Calendar.OCTOBER, 31, 9, 30, 17);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(5); // every 5 days
+
+    targetCalendar = Calendar.getInstance();
+    targetCalendar.setTime(startCalendar.getTime());
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 15); // jump 15 days (3 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
+    testTime = (Instant) fireTimes.get(3); // get the fourth fire time
+
+    assertEquals(
+        targetCalendar.toInstant(),
+        testTime,
+        "Day increment result not as expected over fall 2010 daylight savings transition.");
+
+    // And again, Pick a day before a fall daylight savings transition...  (QTZ-240)
+
+    startCalendar = Calendar.getInstance();
+    startCalendar.setTimeZone(TimeZone.getTimeZone("CEST"));
+    startCalendar.set(2011, Calendar.OCTOBER, 29, 1, 30, 00);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(1); // every day
+    dailyTrigger.setTimeZone(TimeZone.getTimeZone("EST"));
+
+    targetCalendar = Calendar.getInstance();
+    targetCalendar.setTimeZone(TimeZone.getTimeZone("CEST"));
+    targetCalendar.setTime(startCalendar.getTime());
+    targetCalendar.setLenient(true);
+    targetCalendar.add(Calendar.DAY_OF_YEAR, 3); // jump 3 days (3 intervals)
+    targetCalendar.clear(Calendar.MILLISECOND);
+
+    fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
+    testTime = (Instant) fireTimes.get(3); // get the fourth fire time
+
+    assertEquals(
+        targetCalendar.toInstant(),
+        testTime,
+        "Day increment result not as expected over fall 2011 daylight savings transition.");
+  }
+
+  @Test
+  void testFinalFireTimes() {
+
+    Calendar startCalendar = Calendar.getInstance();
+    startCalendar.set(2010, Calendar.MARCH, 12, 9, 0, 0);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
+    dailyTrigger.setRepeatInterval(5); // every 5 days
+
+    Calendar endCalendar = Calendar.getInstance();
+    endCalendar.setTime(startCalendar.getTime());
+    endCalendar.setLenient(true);
+    endCalendar.add(Calendar.DAY_OF_YEAR, 10); // jump 10 days (2 intervals)
+    endCalendar.clear(Calendar.MILLISECOND);
+    dailyTrigger.setEndTime(endCalendar.toInstant());
+
+    Instant testTime = dailyTrigger.getFinalFireTime();
+
+    assertEquals(
+        endCalendar.toInstant(),
+        testTime,
+        "Final fire time not computed correctly for day interval.");
+
+    startCalendar = Calendar.getInstance();
+    startCalendar.set(2010, Calendar.MARCH, 12, 9, 0, 0);
+    startCalendar.clear(Calendar.MILLISECOND);
+
+    dailyTrigger = new CalendarIntervalTriggerImpl();
+    dailyTrigger.setStartTime(startCalendar.toInstant());
+    dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
+    dailyTrigger.setRepeatInterval(5); // every 5 minutes
+
+    endCalendar = Calendar.getInstance();
+    endCalendar.setTime(startCalendar.getTime());
+    endCalendar.setLenient(true);
+    endCalendar.add(Calendar.DAY_OF_YEAR, 15); // jump 15 days
+    endCalendar.add(Calendar.MINUTE, -2); // back up two minutes
+    endCalendar.clear(Calendar.MILLISECOND);
+    dailyTrigger.setEndTime(endCalendar.toInstant());
+
+    testTime = dailyTrigger.getFinalFireTime();
+
+    assertTrue(
+        (endCalendar.toInstant().isAfter(testTime)),
+        "Final fire time not computed correctly for minutely interval.");
+
+    endCalendar.add(Calendar.MINUTE, -3); // back up three more minutes
+
+    assertEquals(
+        endCalendar.toInstant(),
+        testTime,
+        "Final fire time not computed correctly for minutely interval.");
+  }
+
+  @Test
+  void testMisfireInstructionValidity() throws ParseException {
+    CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+
+    try {
+      trigger.setMisfireInstruction(Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY);
+      trigger.setMisfireInstruction(Trigger.MISFIRE_INSTRUCTION_SMART_POLICY);
+      trigger.setMisfireInstruction(CalendarIntervalTriggerImpl.MISFIRE_INSTRUCTION_DO_NOTHING);
+      trigger.setMisfireInstruction(CalendarIntervalTriggerImpl.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW);
+    } catch (Exception e) {
+      fail("Unexpected exception while setting misfire instruction.");
     }
 
-    void testQTZ330DaylightSavingsCornerCase() {
-        TimeZone edt = TimeZone.getTimeZone("America/New_York");
+    try {
+      trigger.setMisfireInstruction(CalendarIntervalTriggerImpl.MISFIRE_INSTRUCTION_DO_NOTHING + 1);
 
-        Calendar start = Calendar.getInstance();
-        start.clear();
-        start.setTimeZone(edt);
-        start.set(2012, Calendar.MARCH, 16, 2, 30, 0);
-
-        Calendar after = Calendar.getInstance();
-        after.clear();
-        after.setTimeZone(edt);
-        after.set(2013, Calendar.APRIL, 19, 2, 30, 0);
-
-        BaseCalendar baseCalendar = new BaseCalendar(edt);
-
-        CalendarIntervalTriggerImpl intervalTrigger = new CalendarIntervalTriggerImpl("QTZ-330", start.toInstant(), null, DateBuilder.IntervalUnit.DAY, 1);
-        intervalTrigger.setTimeZone(edt);
-        intervalTrigger.setPreserveHourOfDayAcrossDaylightSavings(true);
-        intervalTrigger.computeFirstFireTime(baseCalendar);
-
-        Instant fireTime = intervalTrigger.getFireTimeAfter(after.toInstant());
-        assertThat(fireTime.isAfter(after.toInstant()), is(true));
+      fail("Expected exception while setting invalid misfire instruction but did not get it.");
+    } catch (Exception e) {
     }
-
-    @Test
-    void testYearlyIntervalGetFireTimeAfter() {
-
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-        yearlyTrigger.setStartTime(startCalendar.toInstant());
-        yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.YEAR);
-        yearlyTrigger.setRepeatInterval(2); // every two years;
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.set(2009, Calendar.JUNE, 1, 9, 30, 17); // jump 4 years (2 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 4);
-        Instant secondTime = fireTimes.get(2); // get the third fire time
-        
-        assertEquals(targetCalendar.toInstant(), secondTime, "Year increment result not as expected.");
-    }
-
-    @Test
-    void testMonthlyIntervalGetFireTimeAfter() {
-
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-        yearlyTrigger.setStartTime(startCalendar.toInstant());
-        yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MONTH);
-        yearlyTrigger.setRepeatInterval(5); // every five months
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.MONTH, 25); // jump 25 five months (5 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-        Instant fifthTime = fireTimes.get(5); // get the sixth fire time
-
-        assertEquals(targetCalendar.toInstant(), fifthTime, "Month increment result not as expected.");
-    }
-    @Test
-    void testWeeklyIntervalGetFireTimeAfter() {
-
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-        yearlyTrigger.setStartTime(startCalendar.toInstant());
-        yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.WEEK);
-        yearlyTrigger.setRepeatInterval(6); // every six weeks
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 7 * 6 * 4); // jump 24 weeks (4 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 7);
-        Instant fifthTime = fireTimes.get(4); // get the fifth fire time
-
-        assertEquals(targetCalendar.toInstant(), fifthTime, "Week increment result not as expected.");
-    }
-    @Test
-    void testDailyIntervalGetFireTimeAfter() {
-
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(90); // every ninety days
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 360); // jump 360 days (4 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-        Instant fifthTime = fireTimes.get(4); // get the fifth fire time
-
-        assertEquals(targetCalendar.toInstant(), fifthTime, "Day increment result not as expected.");
-    }
-    @Test
-    void testHourlyIntervalGetFireTimeAfter() {
-
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-        yearlyTrigger.setStartTime(startCalendar.toInstant());
-        yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
-        yearlyTrigger.setRepeatInterval(100); // every 100 hours
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.HOUR, 400); // jump 400 hours (4 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-        Instant fifthTime = fireTimes.get(4); // get the fifth fire time
-
-        assertEquals(targetCalendar.toInstant(), fifthTime, "Hour increment result not as expected.");
-    }
-    @Test
-    void testMinutelyIntervalGetFireTimeAfter() {
-
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-        yearlyTrigger.setStartTime(startCalendar.toInstant());
-        yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
-        yearlyTrigger.setRepeatInterval(100); // every 100 minutes
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.MINUTE, 400); // jump 400 minutes (4 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-        Instant fifthTime = fireTimes.get(4); // get the fifth fire time
-
-        assertEquals(targetCalendar.toInstant(), fifthTime, "Minutes increment result not as expected.");
-    }
-    @Test
-    void testSecondlyIntervalGetFireTimeAfter() {
-
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-        yearlyTrigger.setStartTime(startCalendar.toInstant());
-        yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.SECOND);
-        yearlyTrigger.setRepeatInterval(100); // every 100 seconds
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.SECOND, 400); // jump 400 seconds (4 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-        Instant fifthTime = fireTimes.get(4); // get the third fire time
-
-        assertEquals(targetCalendar.toInstant(), fifthTime, "Seconds increment result not as expected.");
-    }
-    @Test
-    void testDaylightSavingsTransitions() {
-
-        // Pick a day before a spring daylight savings transition...
-        
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2010, Calendar.MARCH, 12, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(5); // every 5 days
-        
-        Calendar targetCalendar = Calendar.getInstance();
-        targetCalendar.setTime(startCalendar.getTime());
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 10); // jump 10 days (2 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        List<Instant> fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-        Instant testTime = fireTimes.get(2); // get the third fire time
-
-        assertEquals(targetCalendar.toInstant(), testTime, "Day increment result not as expected over spring 2010 daylight savings transition.");
-
-        // And again, Pick a day before a spring daylight savings transition... (QTZ-240)
-        
-        startCalendar = Calendar.getInstance();
-        startCalendar.set(2011, Calendar.MARCH, 12, 1, 0, 0);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(1); // every day
-        
-        targetCalendar = Calendar.getInstance();
-        targetCalendar.setTime(startCalendar.getTime());
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 2); // jump 2 days (2 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-        testTime = fireTimes.get(2); // get the third fire time
-
-        assertEquals(targetCalendar.toInstant(), testTime, "Day increment result not as expected over spring 2011 daylight savings transition.");
-        
-        // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is not preserved without setPreserveHourOfDayAcrossDaylightSavings(true)
-        
-        startCalendar = Calendar.getInstance();
-        startCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
-        startCalendar.set(2011, Calendar.MARCH, 26, 4, 0, 0);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(1); // every day
-        dailyTrigger.setTimeZone(TimeZone.getTimeZone("EST"));
-        
-        targetCalendar = Calendar.getInstance();
-        targetCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
-        targetCalendar.setTime(startCalendar.getTime());
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 2); // jump 2 days (2 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-
-		testTime = fireTimes.get(2); // get the third fire time
-
-        Calendar testCal = Calendar.getInstance(TimeZone.getTimeZone("CET"));
-        testCal.setTimeInMillis(testTime.toEpochMilli());
-
-        assertNotEquals(targetCalendar.get(Calendar.HOUR_OF_DAY), testCal.get(Calendar.HOUR_OF_DAY), "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
-        
-        // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is preserved with setPreserveHourOfDayAcrossDaylightSavings(true)
-        
-        startCalendar = Calendar.getInstance();
-        startCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
-        startCalendar.set(2011, Calendar.MARCH, 26, 4, 0, 0);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(1); // every day
-        dailyTrigger.setTimeZone(TimeZone.getTimeZone("CET"));
-        dailyTrigger.setPreserveHourOfDayAcrossDaylightSavings(true);
-        
-        targetCalendar = Calendar.getInstance();
-        targetCalendar.setTimeZone(TimeZone.getTimeZone("CET"));
-        targetCalendar.setTime(startCalendar.getTime());
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 2); // jump 2 days (2 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-
-		testTime = fireTimes.get(2); // get the third fire time
-
-        testCal = Calendar.getInstance(TimeZone.getTimeZone("CET"));
-        testCal.setTimeInMillis(testTime.toEpochMilli());
-
-        assertEquals(targetCalendar.get(Calendar.HOUR_OF_DAY), testCal.get(Calendar.HOUR_OF_DAY), "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
-        
-        // Pick a day before a fall daylight savings transition...
-        
-        startCalendar = Calendar.getInstance();
-        startCalendar.set(2010, Calendar.OCTOBER, 31, 9, 30, 17);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(5); // every 5 days
-        
-        targetCalendar = Calendar.getInstance();
-        targetCalendar.setTime(startCalendar.getTime());
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 15); // jump 15 days (3 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-        testTime = (Instant) fireTimes.get(3); // get the fourth fire time
-
-        assertEquals(targetCalendar.toInstant(), testTime, "Day increment result not as expected over fall 2010 daylight savings transition.");
-        
-        // And again, Pick a day before a fall daylight savings transition...  (QTZ-240)
-        
-        startCalendar = Calendar.getInstance();
-        startCalendar.setTimeZone(TimeZone.getTimeZone("CEST"));
-        startCalendar.set(2011, Calendar.OCTOBER, 29, 1, 30, 00);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(1); // every day
-        dailyTrigger.setTimeZone(TimeZone.getTimeZone("EST"));
-
-        targetCalendar = Calendar.getInstance();
-        targetCalendar.setTimeZone(TimeZone.getTimeZone("CEST"));
-        targetCalendar.setTime(startCalendar.getTime());
-        targetCalendar.setLenient(true);
-        targetCalendar.add(Calendar.DAY_OF_YEAR, 3); // jump 3 days (3 intervals)
-        targetCalendar.clear(Calendar.MILLISECOND);
-
-        fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-        testTime = (Instant) fireTimes.get(3); // get the fourth fire time
-
-        assertEquals(targetCalendar.toInstant(), testTime, "Day increment result not as expected over fall 2011 daylight savings transition.");
-    }
-
-    @Test
-    void testFinalFireTimes() {
-
-        
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.set(2010, Calendar.MARCH, 12, 9, 0, 0);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-        dailyTrigger.setRepeatInterval(5); // every 5 days
-        
-        Calendar endCalendar = Calendar.getInstance();
-        endCalendar.setTime(startCalendar.getTime());
-        endCalendar.setLenient(true);
-        endCalendar.add(Calendar.DAY_OF_YEAR, 10); // jump 10 days (2 intervals)
-        endCalendar.clear(Calendar.MILLISECOND);
-        dailyTrigger.setEndTime(endCalendar.toInstant());
-
-        Instant testTime = dailyTrigger.getFinalFireTime();
-
-        assertEquals(endCalendar.toInstant(), testTime, "Final fire time not computed correctly for day interval.");
-
-        
-        startCalendar = Calendar.getInstance();
-        startCalendar.set(2010, Calendar.MARCH, 12, 9, 0, 0);
-        startCalendar.clear(Calendar.MILLISECOND);
-
-        dailyTrigger = new CalendarIntervalTriggerImpl();
-        dailyTrigger.setStartTime(startCalendar.toInstant());
-        dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
-        dailyTrigger.setRepeatInterval(5); // every 5 minutes
-        
-        endCalendar = Calendar.getInstance();
-        endCalendar.setTime(startCalendar.getTime());
-        endCalendar.setLenient(true);
-        endCalendar.add(Calendar.DAY_OF_YEAR, 15); // jump 15 days 
-        endCalendar.add(Calendar.MINUTE,-2); // back up two minutes
-        endCalendar.clear(Calendar.MILLISECOND);
-        dailyTrigger.setEndTime(endCalendar.toInstant());
-
-        testTime = dailyTrigger.getFinalFireTime();
-
-        assertTrue((endCalendar.toInstant().isAfter(testTime)), "Final fire time not computed correctly for minutely interval.");
-
-        endCalendar.add(Calendar.MINUTE,-3); // back up three more minutes
-
-        assertEquals(endCalendar.toInstant(), testTime, "Final fire time not computed correctly for minutely interval.");
-    }
-
-    @Test
-    void testMisfireInstructionValidity() throws ParseException {
-        CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
-
-        try {
-            trigger.setMisfireInstruction(Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY);
-            trigger.setMisfireInstruction(Trigger.MISFIRE_INSTRUCTION_SMART_POLICY);
-            trigger.setMisfireInstruction(CalendarIntervalTriggerImpl.MISFIRE_INSTRUCTION_DO_NOTHING);
-            trigger.setMisfireInstruction(CalendarIntervalTriggerImpl.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW);
-        }
-        catch(Exception e) {
-            fail("Unexpected exception while setting misfire instruction.");
-        }
-        
-        try {
-            trigger.setMisfireInstruction(CalendarIntervalTriggerImpl.MISFIRE_INSTRUCTION_DO_NOTHING + 1);
-            
-            fail("Expected exception while setting invalid misfire instruction but did not get it.");
-        }
-        catch(Exception e) {
-        }
-    }
-    
-    @Override
-    protected Object getTargetObject() throws Exception {
-        JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.put("A", "B");
-        
-        CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
-        t.setName("test");
-        t.setGroup("testGroup");
-        t.setCalendarName("MyCalendar");
-        t.setDescription("CronTriggerDesc");
-        t.setJobDataMap(jobDataMap);
-        t.setRepeatInterval(5);
-        t.setRepeatIntervalUnit(IntervalUnit.DAY);
-
-        return t;    
-    }
-
-
-    @Override
-    protected String[] getVersions() {
-        return VERSIONS;
-    }
-
-    @Override
-    protected void verifyMatch(Object target, Object deserialized) {
-        CalendarIntervalTriggerImpl targetCalTrigger = (CalendarIntervalTriggerImpl)target;
-        CalendarIntervalTriggerImpl deserializedCalTrigger = (CalendarIntervalTriggerImpl)deserialized;
-
-        assertNotNull(deserializedCalTrigger);
-        assertEquals(targetCalTrigger.getName(), deserializedCalTrigger.getName());
-        assertEquals(targetCalTrigger.getGroup(), deserializedCalTrigger.getGroup());
-        assertEquals(targetCalTrigger.getJobName(), deserializedCalTrigger.getJobName());
-        assertEquals(targetCalTrigger.getJobGroup(), deserializedCalTrigger.getJobGroup());
-//        assertEquals(targetCronTrigger.getStartTime(), deserializedCronTrigger.getStartTime());
-        assertEquals(targetCalTrigger.getEndTime(), deserializedCalTrigger.getEndTime());
-        assertEquals(targetCalTrigger.getCalendarName(), deserializedCalTrigger.getCalendarName());
-        assertEquals(targetCalTrigger.getDescription(), deserializedCalTrigger.getDescription());
-        assertEquals(targetCalTrigger.getJobDataMap(), deserializedCalTrigger.getJobDataMap());
-        assertEquals(targetCalTrigger.getRepeatInterval(), deserializedCalTrigger.getRepeatInterval());
-        assertEquals(targetCalTrigger.getRepeatIntervalUnit(), deserializedCalTrigger.getRepeatIntervalUnit());
-        
-    }
-    
-    // execute with version number to generate a new version's serialized form
-    public static void main(String[] args) throws Exception {
-        new CalendarIntervalTriggerTest().writeJobDataFile("2.0");
-    }
-
-
-
-
+  }
+
+  @Override
+  protected Object getTargetObject() throws Exception {
+    JobDataMap jobDataMap = new JobDataMap();
+    jobDataMap.put("A", "B");
+
+    CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
+    t.setName("test");
+    t.setGroup("testGroup");
+    t.setCalendarName("MyCalendar");
+    t.setDescription("CronTriggerDesc");
+    t.setJobDataMap(jobDataMap);
+    t.setRepeatInterval(5);
+    t.setRepeatIntervalUnit(IntervalUnit.DAY);
+
+    return t;
+  }
+
+  @Override
+  protected String[] getVersions() {
+    return VERSIONS;
+  }
+
+  @Override
+  protected void verifyMatch(Object target, Object deserialized) {
+    CalendarIntervalTriggerImpl targetCalTrigger = (CalendarIntervalTriggerImpl) target;
+    CalendarIntervalTriggerImpl deserializedCalTrigger = (CalendarIntervalTriggerImpl) deserialized;
+
+    assertNotNull(deserializedCalTrigger);
+    assertEquals(targetCalTrigger.getName(), deserializedCalTrigger.getName());
+    assertEquals(targetCalTrigger.getGroup(), deserializedCalTrigger.getGroup());
+    assertEquals(targetCalTrigger.getJobName(), deserializedCalTrigger.getJobName());
+    assertEquals(targetCalTrigger.getJobGroup(), deserializedCalTrigger.getJobGroup());
+    //        assertEquals(targetCronTrigger.getStartTime(),
+    // deserializedCronTrigger.getStartTime());
+    assertEquals(targetCalTrigger.getEndTime(), deserializedCalTrigger.getEndTime());
+    assertEquals(targetCalTrigger.getCalendarName(), deserializedCalTrigger.getCalendarName());
+    assertEquals(targetCalTrigger.getDescription(), deserializedCalTrigger.getDescription());
+    assertEquals(targetCalTrigger.getJobDataMap(), deserializedCalTrigger.getJobDataMap());
+    assertEquals(targetCalTrigger.getRepeatInterval(), deserializedCalTrigger.getRepeatInterval());
+    assertEquals(
+        targetCalTrigger.getRepeatIntervalUnit(), deserializedCalTrigger.getRepeatIntervalUnit());
+  }
+
+  // execute with version number to generate a new version's serialized form
+  public static void main(String[] args) throws Exception {
+    new CalendarIntervalTriggerTest().writeJobDataFile("2.0");
+  }
 }

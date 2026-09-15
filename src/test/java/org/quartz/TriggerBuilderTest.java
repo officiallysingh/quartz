@@ -22,59 +22,53 @@ import static org.quartz.DateBuilder.futureDate;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 import java.time.Instant;
-import java.time.Instant;
-
-
 import org.junit.jupiter.api.Test;
 import org.quartz.DateBuilder.IntervalUnit;
 
-/**
- * Test TriggerBuilder functionality
- */
-public class TriggerBuilderTest  {
+/** Test TriggerBuilder functionality */
+public class TriggerBuilderTest {
 
+  @SuppressWarnings("deprecation")
+  public static class TestStatefulJob implements StatefulJob {
+    public void execute(JobExecutionContext context) throws JobExecutionException {}
+  }
 
-    @SuppressWarnings("deprecation")
-    public static class TestStatefulJob implements StatefulJob {
-        public void execute(JobExecutionContext context)
-                throws JobExecutionException {
-        }
-    }
+  public static class TestJob implements Job {
+    public void execute(JobExecutionContext context) throws JobExecutionException {}
+  }
 
-    public static class TestJob implements Job {
-        public void execute(JobExecutionContext context)
-                throws JobExecutionException {
-        }
-    }
-    
-    @DisallowConcurrentExecution
-    @PersistJobDataAfterExecution
-    public static class TestAnnotatedJob implements Job {
-        public void execute(JobExecutionContext context)
-                throws JobExecutionException {
-        }
-    }
+  @DisallowConcurrentExecution
+  @PersistJobDataAfterExecution
+  public static class TestAnnotatedJob implements Job {
+    public void execute(JobExecutionContext context) throws JobExecutionException {}
+  }
 
-/*    @Override
-    protected void setUp() throws Exception {
-    }*/
-    @Test
-    void testTriggerBuilder() {
-        
-        Trigger trigger = newTrigger()
-            .build();
+  /*    @Override
+  protected void setUp() throws Exception {
+  }*/
+  @Test
+  void testTriggerBuilder() {
 
-        assertNotNull(trigger.getKey().getName(), "Expected non-null trigger name ");
-        assertEquals(JobKey.DEFAULT_GROUP, trigger.getKey().getGroup(), "Unexpected trigger group: " + trigger.getKey().getGroup());
-        assertNull(trigger.getJobKey(), "Unexpected job key: " + trigger.getJobKey());
-        assertNull(trigger.getDescription(), "Unexpected job description: " + trigger.getDescription());
-        assertEquals(Trigger.DEFAULT_PRIORITY, trigger.getPriority(), "Unexpected trigger priority: " + trigger.getPriority());
-        assertNotNull(trigger.getStartTime(), "Unexpected start-time: " + trigger.getStartTime());
-        assertNull(trigger.getEndTime(), "Unexpected end-time: " + trigger.getEndTime());
-        
-        Instant stime = evenSecondDateAfterNow();
-        
-        trigger = newTrigger()
+    Trigger trigger = newTrigger().build();
+
+    assertNotNull(trigger.getKey().getName(), "Expected non-null trigger name ");
+    assertEquals(
+        JobKey.DEFAULT_GROUP,
+        trigger.getKey().getGroup(),
+        "Unexpected trigger group: " + trigger.getKey().getGroup());
+    assertNull(trigger.getJobKey(), "Unexpected job key: " + trigger.getJobKey());
+    assertNull(trigger.getDescription(), "Unexpected job description: " + trigger.getDescription());
+    assertEquals(
+        Trigger.DEFAULT_PRIORITY,
+        trigger.getPriority(),
+        "Unexpected trigger priority: " + trigger.getPriority());
+    assertNotNull(trigger.getStartTime(), "Unexpected start-time: " + trigger.getStartTime());
+    assertNull(trigger.getEndTime(), "Unexpected end-time: " + trigger.getEndTime());
+
+    Instant stime = evenSecondDateAfterNow();
+
+    trigger =
+        newTrigger()
             .withIdentity("t1")
             .withDescription("my description")
             .withPriority(2)
@@ -82,39 +76,46 @@ public class TriggerBuilderTest  {
             .startAt(stime)
             .build();
 
-        assertEquals("t1", trigger.getKey().getName(), "Unexpected trigger name " + trigger.getKey().getName());
-        assertEquals(JobKey.DEFAULT_GROUP, trigger.getKey().getGroup(), "Unexpected trigger group: " + trigger.getKey().getGroup());
-        assertNull(trigger.getJobKey(), "Unexpected job key: " + trigger.getJobKey());
-        assertEquals("my description", trigger.getDescription(), "Unexpected job description: " + trigger.getDescription());
-        assertEquals(2, trigger.getPriority(), "Unexpected trigger priority: " + trigger);
-        assertEquals(trigger.getStartTime(), stime, "Unexpected start-time: " + trigger.getStartTime());
-        assertNotNull(trigger.getEndTime(), "Unexpected end-time: " + trigger.getEndTime());
-        
-    }
-    
-    /** QTZ-157 */
-    @Test
-    void testTriggerBuilderWithEndTimePriorCurrentTime() throws Exception {
-    	TriggerBuilder.newTrigger()
-                .withIdentity("some trigger name", "some trigger group")
-                .forJob("some job name", "some job group")
-                .startAt(Instant.ofEpochMilli(System.currentTimeMillis() - 200000000))
-                .endAt(Instant.ofEpochMilli(System.currentTimeMillis() - 100000000))
-                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 0 * * ?"))
-                .build();
-    }
+    assertEquals(
+        "t1", trigger.getKey().getName(), "Unexpected trigger name " + trigger.getKey().getName());
+    assertEquals(
+        JobKey.DEFAULT_GROUP,
+        trigger.getKey().getGroup(),
+        "Unexpected trigger group: " + trigger.getKey().getGroup());
+    assertNull(trigger.getJobKey(), "Unexpected job key: " + trigger.getJobKey());
+    assertEquals(
+        "my description",
+        trigger.getDescription(),
+        "Unexpected job description: " + trigger.getDescription());
+    assertEquals(2, trigger.getPriority(), "Unexpected trigger priority: " + trigger);
+    assertEquals(trigger.getStartTime(), stime, "Unexpected start-time: " + trigger.getStartTime());
+    assertNotNull(trigger.getEndTime(), "Unexpected end-time: " + trigger.getEndTime());
+  }
 
-    @Test
-    void testTriggerBuilderWithInstant() throws InterruptedException {
-        Instant instantTime = Instant.now().plusSeconds(3L).truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
-        Trigger trigger = TriggerBuilder.newTrigger()
-                .withIdentity("triggerTest Instant", "triggerTest Instant group")
-                .forJob("test job Instant", "test job Instant group")
-                .startAt(instantTime)
-                .build();
-        assertEquals(instantTime, trigger.getStartTime());
-        Thread.sleep(5000);
-        assertEquals(instantTime, trigger.getFinalFireTime());
-    }
+  /** QTZ-157 */
+  @Test
+  void testTriggerBuilderWithEndTimePriorCurrentTime() throws Exception {
+    TriggerBuilder.newTrigger()
+        .withIdentity("some trigger name", "some trigger group")
+        .forJob("some job name", "some job group")
+        .startAt(Instant.ofEpochMilli(System.currentTimeMillis() - 200000000))
+        .endAt(Instant.ofEpochMilli(System.currentTimeMillis() - 100000000))
+        .withSchedule(CronScheduleBuilder.cronSchedule("0 0 0 * * ?"))
+        .build();
+  }
 
+  @Test
+  void testTriggerBuilderWithInstant() throws InterruptedException {
+    Instant instantTime =
+        Instant.now().plusSeconds(3L).truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    Trigger trigger =
+        TriggerBuilder.newTrigger()
+            .withIdentity("triggerTest Instant", "triggerTest Instant group")
+            .forJob("test job Instant", "test job Instant group")
+            .startAt(instantTime)
+            .build();
+    assertEquals(instantTime, trigger.getStartTime());
+    Thread.sleep(5000);
+    assertEquals(instantTime, trigger.getFinalFireTime());
+  }
 }

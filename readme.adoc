@@ -10,7 +10,31 @@ for scheduling and executing jobs.
 * Persistent store is **MongoDB only** (`org.quartz.impl.mongodb.MongoJobStore`). JDBC / RDBMS support has been removed.
 * Public fire times use `java.time.Instant` (not `java.util.Date`). `DateBuilder` is the DSL helper that produces those instants (`futureDate`, `tomorrowAt`, `evenMinuteDate`, …) and takes `ZoneId`, not `TimeZone`.
 * Clustering needs a MongoDB replica set and NTP-synced clocks.
-* Keep this library off `spring-boot-starter-quartz` (that starter still assumes JDBC). Inject Boot's `MongoClient` into `MongoJobStore.setMongoClient(...)` and do not close it from the job store.
+* Keep the official `spring-boot-starter-quartz` off the classpath (it still assumes JDBC).
+  This artifact ships its own auto-configuration. Inject Boot's `MongoClient` (it is not closed
+  by the job store).
+
+YAML (in the Spring Boot application):
+
+```
+spring:
+  quartz:
+    job-store-type: auto          # mongodb if a MongoClient bean exists, otherwise ram
+    scheduler-name: quartzScheduler
+    auto-startup: true
+    wait-for-jobs-to-complete-on-shutdown: true
+    thread-pool:
+      thread-count: 10
+    mongodb:
+      # database: oxneer     # optional; defaults to spring.mongodb.database
+      collection-prefix: qrtz_
+      clustered: true            # replica set + NTP
+    # properties:
+    #   org.quartz.threadPool.threadCount: "10"
+```
+
+Declare `JobDetail`, `Trigger`, and `Calendar` beans in the app; they are registered automatically.
+Jobs are constructed per fire and autowired from the Spring context.
 
 Build:
 

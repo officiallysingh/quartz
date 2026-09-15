@@ -16,142 +16,119 @@
  */
 package org.quartz.integrations.tests;
 
-
-import org.junit.jupiter.api.Test;
-import org.quartz.impl.matchers.GroupMatcher;
-
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.not;
-
-
-import org.quartz.*;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.TriggerBuilder.newTrigger;
-import static org.quartz.TriggerKey.triggerKey;
 
-/**
- * Created by zemian on 10/25/16.
- */
+import org.junit.jupiter.api.Test;
+import org.quartz.*;
+import org.quartz.impl.matchers.GroupMatcher;
+
+/** Created by zemian on 10/25/16. */
 public class QuartzMemoryPauseAndResumeTest extends QuartzMemoryTestSupport {
 
-    @Test
-    void testPauseAndResumeTriggers() throws Exception {
-        JobDetail jobDetail = newJob(HelloJob.class)
-                .withIdentity("test")
-                .build();
+  @Test
+  void testPauseAndResumeTriggers() throws Exception {
+    JobDetail jobDetail = newJob(HelloJob.class).withIdentity("test").build();
 
-        CronTrigger trigger = newTrigger()
-                .withIdentity("test", "abc")
-                .withSchedule(cronSchedule("* * * * * ?"))
-                .build();
+    CronTrigger trigger =
+        newTrigger().withIdentity("test", "abc").withSchedule(cronSchedule("* * * * * ?")).build();
 
-        scheduler.scheduleJob(jobDetail, trigger);
+    scheduler.scheduleJob(jobDetail, trigger);
 
-        Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+    Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
 
-        scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
+    scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.PAUSED));
+    assertThat(state, not(Trigger.TriggerState.NORMAL));
 
-        scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
-    }
+    scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
+  }
 
-    @Test
-    void testResumeTriggersBeforeAddJob() throws Exception {
-        scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
-        scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
+  @Test
+  void testResumeTriggersBeforeAddJob() throws Exception {
+    scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
+    scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
 
-        JobDetail jobDetail = newJob(HelloJob.class)
-                .withIdentity("test")
-                .build();
+    JobDetail jobDetail = newJob(HelloJob.class).withIdentity("test").build();
 
-        CronTrigger trigger = newTrigger()
-                .withIdentity("test", "abc")
-                .withSchedule(cronSchedule("* * * * * ?"))
-                .build();
+    CronTrigger trigger =
+        newTrigger().withIdentity("test", "abc").withSchedule(cronSchedule("* * * * * ?")).build();
 
-        scheduler.scheduleJob(jobDetail, trigger);
+    scheduler.scheduleJob(jobDetail, trigger);
 
-        Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+    Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
 
-        scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
+    scheduler.pauseTriggers(GroupMatcher.triggerGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.PAUSED));
+    assertThat(state, not(Trigger.TriggerState.NORMAL));
 
-        scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
-    }
+    scheduler.resumeTriggers(GroupMatcher.triggerGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
+  }
 
-    @Test
-    void testPauseAndResumeJobs() throws Exception {
-        JobDetail jobDetail = newJob(HelloJob.class)
-                .withIdentity("test", "abc")
-                .build();
+  @Test
+  void testPauseAndResumeJobs() throws Exception {
+    JobDetail jobDetail = newJob(HelloJob.class).withIdentity("test", "abc").build();
 
-        CronTrigger trigger = newTrigger()
-                .withIdentity("test", "abc")
-                .withSchedule(cronSchedule("* * * * * ?"))
-                .build();
+    CronTrigger trigger =
+        newTrigger().withIdentity("test", "abc").withSchedule(cronSchedule("* * * * * ?")).build();
 
-        scheduler.scheduleJob(jobDetail, trigger);
+    scheduler.scheduleJob(jobDetail, trigger);
 
-        Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+    Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
 
-        scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
+    scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.PAUSED));
+    assertThat(state, not(Trigger.TriggerState.NORMAL));
 
-        scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
-    }
+    scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
+  }
 
+  @Test
+  void testResumeJobsBeforeAddJobs() throws Exception {
+    scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
+    scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
 
-    @Test
-    void testResumeJobsBeforeAddJobs() throws Exception {
-        scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
-        scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
+    JobDetail jobDetail = newJob(HelloJob.class).withIdentity("test", "abc").build();
 
-        JobDetail jobDetail = newJob(HelloJob.class)
-                .withIdentity("test", "abc")
-                .build();
+    CronTrigger trigger =
+        newTrigger().withIdentity("test", "abc").withSchedule(cronSchedule("* * * * * ?")).build();
 
-        CronTrigger trigger = newTrigger()
-                .withIdentity("test", "abc")
-                .withSchedule(cronSchedule("* * * * * ?"))
-                .build();
+    scheduler.scheduleJob(jobDetail, trigger);
 
-        scheduler.scheduleJob(jobDetail, trigger);
+    Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
 
-        Trigger.TriggerState state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
+    scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.PAUSED));
+    assertThat(state, not(Trigger.TriggerState.NORMAL));
 
-        scheduler.pauseJobs(GroupMatcher.jobGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.PAUSED));
-        assertThat(state, not(Trigger.TriggerState.NORMAL));
-
-        scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
-        state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
-        assertThat(state, is(Trigger.TriggerState.NORMAL));
-        assertThat(state, not(Trigger.TriggerState.PAUSED));
-    }
+    scheduler.resumeJobs(GroupMatcher.jobGroupEquals("abc"));
+    state = scheduler.getTriggerState(TriggerKey.triggerKey("test", "abc"));
+    assertThat(state, is(Trigger.TriggerState.NORMAL));
+    assertThat(state, not(Trigger.TriggerState.PAUSED));
+  }
 }

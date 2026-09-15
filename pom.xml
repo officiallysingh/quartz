@@ -21,8 +21,8 @@
     </licenses>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>26</maven.compiler.release>
+        <java.version>26</java.version>
+        <spring-boot.version>4.1.1</spring-boot.version>
 
         <slf4j.version>2.0.17</slf4j.version>
         <mongodb.driver.version>5.6.4</mongodb.driver.version>
@@ -33,6 +33,12 @@
         <hamcrest.version>3.0</hamcrest.version>
         <logback.version>1.5.21</logback.version>
         <asm.version>9.9</asm.version>
+
+        <fmt-maven-plugin.version>2.29</fmt-maven-plugin.version>
+        <maven.compiler.release>26</maven.compiler.release>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencyManagement>
@@ -62,6 +68,19 @@
             <groupId>jakarta.xml.bind</groupId>
             <artifactId>jakarta.xml.bind-api</artifactId>
             <version>${jakarta.xml.bind.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <version>${spring-boot.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <version>${spring-boot.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <dependency>
@@ -105,10 +124,38 @@
             <version>${logback.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.quartz-scheduler</groupId>
+                    <artifactId>quartz</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Auto format code during compilation -->
+            <plugin>
+                <groupId>com.spotify.fmt</groupId>
+                <artifactId>fmt-maven-plugin</artifactId>
+                <version>${fmt-maven-plugin.version}</version>
+                <!--                <configuration>-->
+                <!--                    <skip>true</skip>-->
+                <!--                </configuration>-->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>format</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -153,8 +200,8 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.11.2</version>
                 <configuration>
-                    <docTitle>Quartz Job Scheduler ${project.version} API</docTitle>
-                    <windowTitle>Quartz Job Scheduler ${project.version} API</windowTitle>
+<!--                    <docTitle>Quartz Job Scheduler ${project.version} API</docTitle>-->
+<!--                    <windowTitle>Quartz Job Scheduler ${project.version} API</windowTitle>-->
                     <encoding>UTF-8</encoding>
                     <failOnError>false</failOnError>
                 </configuration>

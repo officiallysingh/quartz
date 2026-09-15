@@ -1,210 +1,202 @@
-/* 
+/*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  * Copyright IBM Corp. 2024, 2025
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 package org.quartz.simpl;
 
-import java.util.LinkedList;
-import java.net.URL;
 import java.io.InputStream;
-
+import java.net.URL;
+import java.util.LinkedList;
 import org.quartz.spi.ClassLoadHelper;
 
 /**
- * A <code>ClassLoadHelper</code> uses all of the <code>ClassLoadHelper</code>
- * types that are found in this package in its attempts to load a class, when
- * one scheme is found to work, it is promoted to the scheme that will be used
- * first the next time a class is loaded (in order to improve performance).
- * 
- * <p>
- * This approach is used because of the wide variance in class loader behavior
- * between the various environments in which Quartz runs (e.g. disparate 
- * application servers, stand-alone, mobile devices, etc.).  Because of this
- * disparity, Quartz ran into difficulty with a one class-load style fits-all 
- * design.  Thus, this class loader finds the approach that works, then 
- * 'remembers' it.  
- * </p>
- * 
+ * A <code>ClassLoadHelper</code> uses all of the <code>ClassLoadHelper</code> types that are found
+ * in this package in its attempts to load a class, when one scheme is found to work, it is promoted
+ * to the scheme that will be used first the next time a class is loaded (in order to improve
+ * performance).
+ *
+ * <p>This approach is used because of the wide variance in class loader behavior between the
+ * various environments in which Quartz runs (e.g. disparate application servers, stand-alone,
+ * mobile devices, etc.). Because of this disparity, Quartz ran into difficulty with a one
+ * class-load style fits-all design. Thus, this class loader finds the approach that works, then
+ * 'remembers' it.
+ *
  * @see org.quartz.spi.ClassLoadHelper
  * @see org.quartz.simpl.LoadingLoaderClassLoadHelper
  * @see org.quartz.simpl.SimpleClassLoadHelper
  * @see org.quartz.simpl.ThreadContextClassLoadHelper
  * @see org.quartz.simpl.InitThreadContextClassLoadHelper
- * 
  * @author jhouse
  * @author pl47ypus
  */
 public class CascadingClassLoadHelper implements ClassLoadHelper {
 
-    
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Data members.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Data members.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
 
-    private LinkedList<ClassLoadHelper> loadHelpers;
+  private LinkedList<ClassLoadHelper> loadHelpers;
 
-    private ClassLoadHelper bestCandidate;
+  private ClassLoadHelper bestCandidate;
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Interface.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
+  /*
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   *
+   * Interface.
+   *
+   * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   */
 
-    /**
-     * Called to give the ClassLoadHelper a chance to initialize itself,
-     * including the opportunity to "steal" the class loader off of the calling
-     * thread, which is the thread that is initializing Quartz.
-     */
-    public void initialize() {
-        loadHelpers = new LinkedList<>();
+  /**
+   * Called to give the ClassLoadHelper a chance to initialize itself, including the opportunity to
+   * "steal" the class loader off of the calling thread, which is the thread that is initializing
+   * Quartz.
+   */
+  public void initialize() {
+    loadHelpers = new LinkedList<>();
 
-        loadHelpers.add(new LoadingLoaderClassLoadHelper());
-        loadHelpers.add(new SimpleClassLoadHelper());
-        loadHelpers.add(new ThreadContextClassLoadHelper());
-        loadHelpers.add(new InitThreadContextClassLoadHelper());
-        
-        for(ClassLoadHelper loadHelper: loadHelpers) {
-            loadHelper.initialize();
-        }
+    loadHelpers.add(new LoadingLoaderClassLoadHelper());
+    loadHelpers.add(new SimpleClassLoadHelper());
+    loadHelpers.add(new ThreadContextClassLoadHelper());
+    loadHelpers.add(new InitThreadContextClassLoadHelper());
+
+    for (ClassLoadHelper loadHelper : loadHelpers) {
+      loadHelper.initialize();
+    }
+  }
+
+  /** Return the class with the given name. */
+  public Class<?> loadClass(String name) throws ClassNotFoundException {
+    if (bestCandidate != null) {
+      try {
+        return bestCandidate.loadClass(name);
+      } catch (Throwable t) {
+        bestCandidate = null;
+      }
     }
 
-    /**
-     * Return the class with the given name.
-     */
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
-        if (bestCandidate != null) {
-            try {
-                return bestCandidate.loadClass(name);
-            } catch (Throwable t) {
-                bestCandidate = null;
-            }
-        }
+    Throwable throwable = null;
 
-        Throwable throwable = null;
-
-        for (ClassLoadHelper helper : loadHelpers) {
-            try {
-                Class<?> clazz = helper.loadClass(name);
-                bestCandidate = helper;
-                return clazz;
-            } catch (Throwable t) {
-                throwable = t;
-            }
-        }
-
-        if (throwable instanceof ClassNotFoundException) {
-            throw (ClassNotFoundException) throwable;
-        } else {
-            throw new ClassNotFoundException( String.format( "Unable to load class %s by any known loaders.", name), throwable);
-        }
+    for (ClassLoadHelper helper : loadHelpers) {
+      try {
+        Class<?> clazz = helper.loadClass(name);
+        bestCandidate = helper;
+        return clazz;
+      } catch (Throwable t) {
+        throwable = t;
+      }
     }
 
-    @SuppressWarnings("unchecked")
-    public <T> Class<? extends T> loadClass(String name, Class<T> clazz)
-            throws ClassNotFoundException {
-        return (Class<? extends T>) loadClass(name);
+    if (throwable instanceof ClassNotFoundException) {
+      throw (ClassNotFoundException) throwable;
+    } else {
+      throw new ClassNotFoundException(
+          String.format("Unable to load class %s by any known loaders.", name), throwable);
     }
-    
-    /**
-     * Finds a resource with a given name. This method returns null if no
-     * resource with this name is found.
-     * @param name name of the desired resource
-     * @return a java.net.URL object
-     */
-    public URL getResource(String name) {
+  }
 
-        URL result = null;
+  @SuppressWarnings("unchecked")
+  public <T> Class<? extends T> loadClass(String name, Class<T> clazz)
+      throws ClassNotFoundException {
+    return (Class<? extends T>) loadClass(name);
+  }
 
-        if (bestCandidate != null) {
-            result = bestCandidate.getResource(name);
-            if(result == null) {
-              bestCandidate = null;
-            }
-            else {
-                return result;
-            }
-        }
+  /**
+   * Finds a resource with a given name. This method returns null if no resource with this name is
+   * found.
+   *
+   * @param name name of the desired resource
+   * @return a java.net.URL object
+   */
+  public URL getResource(String name) {
 
-        ClassLoadHelper loadHelper = null;
+    URL result = null;
 
-        for (ClassLoadHelper helper : loadHelpers) {
-            loadHelper = helper;
-
-            result = loadHelper.getResource(name);
-            if (result != null) {
-                break;
-            }
-        }
-
-        bestCandidate = loadHelper;
+    if (bestCandidate != null) {
+      result = bestCandidate.getResource(name);
+      if (result == null) {
+        bestCandidate = null;
+      } else {
         return result;
+      }
     }
 
-    /**
-     * Finds a resource with a given name. This method returns null if no
-     * resource with this name is found.
-     * @param name name of the desired resource
-     * @return a java.io.InputStream object
-     */
-    public InputStream getResourceAsStream(String name) {
+    ClassLoadHelper loadHelper = null;
 
-        InputStream result = null;
+    for (ClassLoadHelper helper : loadHelpers) {
+      loadHelper = helper;
 
-        if (bestCandidate != null) {
-            result = bestCandidate.getResourceAsStream(name);
-            if(result == null) {
-                bestCandidate = null;
-            }
-            else {
-                return result;
-            }
-        }
+      result = loadHelper.getResource(name);
+      if (result != null) {
+        break;
+      }
+    }
 
-        ClassLoadHelper loadHelper = null;
+    bestCandidate = loadHelper;
+    return result;
+  }
 
-        for (ClassLoadHelper helper : loadHelpers) {
-            loadHelper = helper;
+  /**
+   * Finds a resource with a given name. This method returns null if no resource with this name is
+   * found.
+   *
+   * @param name name of the desired resource
+   * @return a java.io.InputStream object
+   */
+  public InputStream getResourceAsStream(String name) {
 
-            result = loadHelper.getResourceAsStream(name);
-            if (result != null) {
-                break;
-            }
-        }
+    InputStream result = null;
 
-        bestCandidate = loadHelper;
+    if (bestCandidate != null) {
+      result = bestCandidate.getResourceAsStream(name);
+      if (result == null) {
+        bestCandidate = null;
+      } else {
         return result;
+      }
     }
 
-    /**
-     * Enable sharing of the "best" class-loader with 3rd party.
-     *
-     * @return the class-loader user be the helper.
-     */
-    public ClassLoader getClassLoader() {
-        return (this.bestCandidate == null) ?
-                Thread.currentThread().getContextClassLoader() :
-                this.bestCandidate.getClassLoader();
+    ClassLoadHelper loadHelper = null;
+
+    for (ClassLoadHelper helper : loadHelpers) {
+      loadHelper = helper;
+
+      result = loadHelper.getResourceAsStream(name);
+      if (result != null) {
+        break;
+      }
     }
 
+    bestCandidate = loadHelper;
+    return result;
+  }
+
+  /**
+   * Enable sharing of the "best" class-loader with 3rd party.
+   *
+   * @return the class-loader user be the helper.
+   */
+  public ClassLoader getClassLoader() {
+    return (this.bestCandidate == null)
+        ? Thread.currentThread().getContextClassLoader()
+        : this.bestCandidate.getClassLoader();
+  }
 }

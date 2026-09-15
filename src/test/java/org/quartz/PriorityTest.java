@@ -16,11 +16,11 @@
  */
 package org.quartz;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.Calendar;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
-
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.JobDetailImpl;
@@ -28,93 +28,88 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+/** Test Trigger priority support. */
+class PriorityTest {
 
-/**
- * Test Trigger priority support.
- */
-class PriorityTest  {
+  private static CountDownLatch latch;
+  private static StringBuffer result;
 
-    private static CountDownLatch latch;
-    private static StringBuffer result;
-
-    @SuppressWarnings("deprecation")
-    public static class TestJob implements StatefulJob {
-        public void execute(JobExecutionContext context)
-                throws JobExecutionException {
-            result.append(context.getTrigger().getKey().getName());
-            latch.countDown();
-        }
+  @SuppressWarnings("deprecation")
+  public static class TestJob implements StatefulJob {
+    public void execute(JobExecutionContext context) throws JobExecutionException {
+      result.append(context.getTrigger().getKey().getName());
+      latch.countDown();
     }
+  }
 
-    @BeforeEach
-    protected void setUp() {
-        PriorityTest.latch = new CountDownLatch(2);
-        PriorityTest.result = new StringBuffer();
-    }
+  @BeforeEach
+  protected void setUp() {
+    PriorityTest.latch = new CountDownLatch(2);
+    PriorityTest.result = new StringBuffer();
+  }
 
-    @SuppressWarnings("deprecation")
-    @Test
-    void testSameDefaultPriority() throws Exception {
-        Properties config = new Properties();
-        config.setProperty("org.quartz.threadPool.threadCount", "1");
-        config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
+  @SuppressWarnings("deprecation")
+  @Test
+  void testSameDefaultPriority() throws Exception {
+    Properties config = new Properties();
+    config.setProperty("org.quartz.threadPool.threadCount", "1");
+    config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
 
-        Scheduler sched = new StdSchedulerFactory(config).getScheduler();
+    Scheduler sched = new StdSchedulerFactory(config).getScheduler();
 
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.SECOND, 1);
+    Calendar cal = Calendar.getInstance();
+    cal.add(Calendar.SECOND, 1);
 
-        MutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal.toInstant());
-        MutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal.toInstant());
+    MutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal.toInstant());
+    MutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal.toInstant());
 
-        JobDetail jobDetail = new JobDetailImpl("JD", null, TestJob.class);
+    JobDetail jobDetail = new JobDetailImpl("JD", null, TestJob.class);
 
-        sched.scheduleJob(jobDetail, trig1);
+    sched.scheduleJob(jobDetail, trig1);
 
-        trig2.setJobKey(new JobKey(jobDetail.getKey().getName()));
-        sched.scheduleJob(trig2);
+    trig2.setJobKey(new JobKey(jobDetail.getKey().getName()));
+    sched.scheduleJob(trig2);
 
-        sched.start();
+    sched.start();
 
-        latch.await();
+    latch.await();
 
-        assertEquals("T1T2", result.toString());
+    assertEquals("T1T2", result.toString());
 
-        sched.shutdown();
-    }
+    sched.shutdown();
+  }
 
-    @SuppressWarnings("deprecation")
-    @Test
-    void testDifferentPriority() throws Exception {
-        Properties config = new Properties();
-        config.setProperty("org.quartz.threadPool.threadCount", "1");
-        config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
+  @SuppressWarnings("deprecation")
+  @Test
+  void testDifferentPriority() throws Exception {
+    Properties config = new Properties();
+    config.setProperty("org.quartz.threadPool.threadCount", "1");
+    config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
 
-        Scheduler sched = new StdSchedulerFactory(config).getScheduler();
+    Scheduler sched = new StdSchedulerFactory(config).getScheduler();
 
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.SECOND, 1);
+    Calendar cal = Calendar.getInstance();
+    cal.add(Calendar.SECOND, 1);
 
-        MutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal.toInstant());
-        trig1.setPriority(5);
+    MutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal.toInstant());
+    trig1.setPriority(5);
 
-        MutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal.toInstant());
-        trig2.setPriority(10);
+    MutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal.toInstant());
+    trig2.setPriority(10);
 
-        JobDetail jobDetail = new JobDetailImpl("JD", null, TestJob.class);
+    JobDetail jobDetail = new JobDetailImpl("JD", null, TestJob.class);
 
-        sched.scheduleJob(jobDetail, trig1);
+    sched.scheduleJob(jobDetail, trig1);
 
-        trig2.setJobKey(new JobKey(jobDetail.getKey().getName(), null));
-        sched.scheduleJob(trig2);
+    trig2.setJobKey(new JobKey(jobDetail.getKey().getName(), null));
+    sched.scheduleJob(trig2);
 
-        sched.start();
+    sched.start();
 
-        latch.await();
+    latch.await();
 
-        assertEquals("T2T1", result.toString());
+    assertEquals("T2T1", result.toString());
 
-        sched.shutdown();
-    }
+    sched.shutdown();
+  }
 }

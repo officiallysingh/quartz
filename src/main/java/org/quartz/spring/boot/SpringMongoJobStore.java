@@ -1,0 +1,24 @@
+package org.quartz.spring.boot;
+
+import com.mongodb.client.MongoClient;
+import org.quartz.spi.ClassLoadHelper;
+import org.quartz.spi.SchedulerSignaler;
+
+/** Mongo job store that prefers an injected Spring {@link MongoClient} and does not close it. */
+public class SpringMongoJobStore extends org.quartz.impl.mongodb.MongoJobStore {
+
+  @Override
+  public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler) {
+    if (getMongoClient() == null) {
+      MongoClient shared = QuartzMongoClientHolder.get();
+      if (shared != null) {
+        setMongoClient(shared);
+      }
+    }
+    if (getMongoClient() == null && (getMongoUri() == null || getMongoUri().isBlank())) {
+      throw new IllegalStateException(
+          "MongoDB job store needs a MongoClient bean or spring.quartz.mongodb.uri");
+    }
+    super.initialize(loadHelper, signaler);
+  }
+}

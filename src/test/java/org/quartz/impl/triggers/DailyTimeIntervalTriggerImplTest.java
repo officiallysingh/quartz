@@ -1,32 +1,30 @@
-/* 
+/*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  * Copyright IBM Corp. 2024, 2025
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 package org.quartz.impl.triggers;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.quartz.DateBuilder.dateOf;
 
-import java.util.Calendar;
 import java.time.Instant;
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -42,10 +40,10 @@ import org.quartz.impl.calendar.CronCalendar;
 
 /**
  * Unit test for {@link DailyTimeIntervalTriggerImpl}.
- * 
+ *
  * @author Zemian Deng <saltnlight5@gmail.com>
  */
-class DailyTimeIntervalTriggerImplTest  {
+class DailyTimeIntervalTriggerImplTest {
 
   @Test
   void testNormalExample() {
@@ -57,8 +55,9 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setStartTimeOfDay(startTimeOfDay);
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
-    trigger.setRepeatInterval(72); // this interval will give three firings per day (8:00, 9:12, and 10:24)
-    
+    trigger.setRepeatInterval(
+        72); // this interval will give three firings per day (8:00, 9:12, and 10:24)
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -73,8 +72,8 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setStartTimeOfDay(new TimeOfDay(8, 0));
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
-    CronCalendar cronCal = new CronCalendar("* * 9-12 * * ?"); // exclude 9-12    
+
+    CronCalendar cronCal = new CronCalendar("* * 9-12 * * ?"); // exclude 9-12
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, cronCal, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -101,7 +100,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setName("test");
     trigger.setGroup("test");
     trigger.setJobKey(JobKey.jobKey("test"));
-    
+
     trigger.setRepeatIntervalUnit(IntervalUnit.HOUR);
     trigger.setRepeatInterval(25);
     try {
@@ -110,7 +109,7 @@ class DailyTimeIntervalTriggerImplTest  {
     } catch (SchedulerException e) {
       // expected.
     }
-    
+
     trigger.setRepeatIntervalUnit(IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60 * 25);
     try {
@@ -128,7 +127,7 @@ class DailyTimeIntervalTriggerImplTest  {
     } catch (SchedulerException e) {
       // expected.
     }
-    
+
     try {
       trigger.setRepeatIntervalUnit(IntervalUnit.DAY);
       trigger.validate();
@@ -154,7 +153,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setStartTime(startTime);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(0, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -170,7 +169,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTime(endTime);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(47, fireTimes.size());
     assertEquals(dateOf(0, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -186,7 +185,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setStartTimeOfDay(startTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -209,8 +208,9 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setStartTimeOfDay(startTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
-    assertEquals(dateOf(8, 0, 0, 3, 1, 2011), trigger.getFireTimeAfter(dateOf(6, 0, 0, 22, 5, 2010)));
+
+    assertEquals(
+        dateOf(8, 0, 0, 3, 1, 2011), trigger.getFireTimeAfter(dateOf(6, 0, 0, 22, 5, 2010)));
 
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
@@ -227,7 +227,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setStartTimeOfDay(startTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(10, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -245,7 +245,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(35, fireTimes.size());
     assertEquals(dateOf(0, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -264,7 +264,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(36, fireTimes.size());
     assertEquals(dateOf(0, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -283,11 +283,12 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
-    assertEquals(dateOf(17, 0, 0, 1, 1, 2011), fireTimes.get(9)); // The 10th hours is the end of day.
+    assertEquals(
+        dateOf(17, 0, 0, 1, 1, 2011), fireTimes.get(9)); // The 10th hours is the end of day.
     assertEquals(dateOf(15, 0, 0, 5, 1, 2011), fireTimes.get(47));
   }
 
@@ -304,11 +305,12 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(30, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
-    assertEquals(dateOf(17, 0, 0, 1, 1, 2011), fireTimes.get(9)); // The 10th hours is the end of day.
+    assertEquals(
+        dateOf(17, 0, 0, 1, 1, 2011), fireTimes.get(9)); // The 10th hours is the end of day.
     assertEquals(dateOf(17, 0, 0, 3, 1, 2011), fireTimes.get(29));
   }
 
@@ -316,16 +318,18 @@ class DailyTimeIntervalTriggerImplTest  {
   void testTimeOfDayWithEndTime2() {
     Instant startTime = dateOf(0, 0, 0, 1, 1, 2011);
     TimeOfDay startTimeOfDay = new TimeOfDay(8, 23, 0);
-    TimeOfDay endTimeOfDay = new TimeOfDay(23, 59, 59); // edge case when endTime is last second of day, which is default too.
+    TimeOfDay endTimeOfDay =
+        new TimeOfDay(
+            23, 59, 59); // edge case when endTime is last second of day, which is default too.
     DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
     trigger.setStartTime(startTime);
     trigger.setStartTimeOfDay(startTimeOfDay);
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
-    assertEquals(48, fireTimes.size());    
+    assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 23, 0, 1, 1, 2011), fireTimes.get(0));
     assertEquals(dateOf(23, 23, 0, 3, 1, 2011), fireTimes.get(47));
   }
@@ -343,11 +347,12 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setDaysOfWeek(daysOfWeek);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
-    assertEquals(dateOf(17, 0, 0, 1, 1, 2011), fireTimes.get(9)); // The 10th hours is the end of day.
+    assertEquals(
+        dateOf(17, 0, 0, 1, 1, 2011), fireTimes.get(9)); // The 10th hours is the end of day.
     assertEquals(dateOf(15, 0, 0, 5, 1, 2011), fireTimes.get(47));
   }
 
@@ -364,7 +369,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setDaysOfWeek(daysOfWeek);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 3, 1, 2011), fireTimes.get(0));
@@ -388,7 +393,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setDaysOfWeek(daysOfWeek);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -413,7 +418,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setDaysOfWeek(daysOfWeek);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(60);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 3, 1, 2011), fireTimes.get(0));
@@ -423,7 +428,6 @@ class DailyTimeIntervalTriggerImplTest  {
     assertEquals(dateOf(15, 0, 0, 31, 1, 2011), fireTimes.get(47));
     assertEquals(Calendar.MONDAY, getDayOfWeek(fireTimes.get(47)));
   }
-
 
   private int getDayOfWeek(Instant dateTime) {
     Calendar cal = Calendar.getInstance();
@@ -444,7 +448,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(23);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(18, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -465,7 +469,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
     trigger.setRepeatInterval(2);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 1, 15, 1, 1, 2011), fireTimes.get(0));
@@ -483,7 +487,7 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.SECOND);
     trigger.setRepeatInterval(72);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 2, 1, 1, 2011), fireTimes.get(0));
@@ -501,10 +505,10 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setEndTimeOfDay(endTimeOfDay);
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(72);
-    
+
     // Setting this (which is default) should make the trigger just as normal one.
     trigger.setRepeatCount(DailyTimeIntervalTrigger.REPEAT_INDEFINITELY);
-    
+
     List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(48, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
@@ -523,8 +527,8 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(72);
     trigger.setRepeatCount(7);
-    
-    List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);    
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(8, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
     assertEquals(dateOf(9, 12, 0, 3, 1, 2011), fireTimes.get(7));
@@ -542,117 +546,147 @@ class DailyTimeIntervalTriggerImplTest  {
     trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
     trigger.setRepeatInterval(72);
     trigger.setRepeatCount(0);
-    
-    List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);    
+
+    List<Instant> fireTimes = TriggerUtils.computeFireTimes(trigger, null, 48);
     assertEquals(1, fireTimes.size());
     assertEquals(dateOf(8, 0, 0, 1, 1, 2011), fireTimes.get(0));
   }
 
   @Test
   void testGetFireTime() {
-        Instant startTime = dateOf(0, 0, 0, 1, 1, 2011);
-        TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
-        TimeOfDay endTimeOfDay = new TimeOfDay(13, 0, 0);
-        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
-        trigger.setStartTime(startTime);
-        trigger.setStartTimeOfDay(startTimeOfDay);
-        trigger.setEndTimeOfDay(endTimeOfDay);
-        trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
-        trigger.setRepeatInterval(1);
+    Instant startTime = dateOf(0, 0, 0, 1, 1, 2011);
+    TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+    TimeOfDay endTimeOfDay = new TimeOfDay(13, 0, 0);
+    DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
+    trigger.setStartTime(startTime);
+    trigger.setStartTimeOfDay(startTimeOfDay);
+    trigger.setEndTimeOfDay(endTimeOfDay);
+    trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
+    trigger.setRepeatInterval(1);
 
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(7, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(7, 59, 59, 1, 1, 2011)));
-        assertEquals(dateOf(9, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(8, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(10, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(9, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(13, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(12, 59, 59, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 2, 1, 2011), trigger.getFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2011)));
-    }
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(7, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(7, 59, 59, 1, 1, 2011)));
+    assertEquals(
+        dateOf(9, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(8, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(10, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(9, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(13, 0, 0, 1, 1, 2011), trigger.getFireTimeAfter(dateOf(12, 59, 59, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 2, 1, 2011), trigger.getFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2011)));
+  }
 
   @Test
   void testGetFireTimeWithDateBeforeStartTime() {
-        Instant startTime = dateOf(0, 0, 0, 1, 1, 2012);
-        TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
-        TimeOfDay endTimeOfDay = new TimeOfDay(13, 0, 0);
-        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
-        trigger.setStartTime(startTime);
-        trigger.setStartTimeOfDay(startTimeOfDay);
-        trigger.setEndTimeOfDay(endTimeOfDay);
-        trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
-        trigger.setRepeatInterval(1);
+    Instant startTime = dateOf(0, 0, 0, 1, 1, 2012);
+    TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+    TimeOfDay endTimeOfDay = new TimeOfDay(13, 0, 0);
+    DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
+    trigger.setStartTime(startTime);
+    trigger.setStartTimeOfDay(startTimeOfDay);
+    trigger.setEndTimeOfDay(endTimeOfDay);
+    trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
+    trigger.setRepeatInterval(1);
 
-        // NOTE that if you pass a date past the startTime, you will get the first firing on or after the startTime back!
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(7, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(7, 59, 59, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(8, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(9, 0, 0, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(12, 59, 59, 1, 1, 2011)));
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2011)));
+    // NOTE that if you pass a date past the startTime, you will get the first firing on or after
+    // the startTime back!
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(7, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(7, 59, 59, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(8, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(9, 0, 0, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(12, 59, 59, 1, 1, 2011)));
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2011)));
 
-        // Now try some test times at or after startTime
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2012)));
-        assertEquals(dateOf(8, 0, 0, 2, 1, 2012), trigger.getFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2012)));
-    }
+    // Now try some test times at or after startTime
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2012)));
+    assertEquals(
+        dateOf(8, 0, 0, 2, 1, 2012), trigger.getFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2012)));
+  }
 
   @Test
   void testGetFireTimeWhenStartTimeAndTimeOfDayIsSame() {
-        // A test case for QTZ-369
-        Instant startTime = dateOf(8, 0, 0, 1, 1, 2012);
-        TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
-        TimeOfDay endTimeOfDay = new TimeOfDay(13, 0, 0);
-        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
-        trigger.setStartTime(startTime);
-        trigger.setStartTimeOfDay(startTimeOfDay);
-        trigger.setEndTimeOfDay(endTimeOfDay);
-        trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
-        trigger.setRepeatInterval(1);
+    // A test case for QTZ-369
+    Instant startTime = dateOf(8, 0, 0, 1, 1, 2012);
+    TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+    TimeOfDay endTimeOfDay = new TimeOfDay(13, 0, 0);
+    DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
+    trigger.setStartTime(startTime);
+    trigger.setStartTimeOfDay(startTimeOfDay);
+    trigger.setEndTimeOfDay(endTimeOfDay);
+    trigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
+    trigger.setRepeatInterval(1);
 
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2012)));
-    }
+    assertEquals(
+        dateOf(8, 0, 0, 1, 1, 2012), trigger.getFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2012)));
+  }
 
   @Test
   void testExtraConstructors() {
-        // A test case for QTZ-389 - some extra constructors didn't set all parameters
-        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl(
-                "triggerName", "triggerGroup", "jobName", "jobGroup",
-                dateOf(8, 0, 0, 1, 1, 2012), null,
-                new TimeOfDay(8, 0, 0), new TimeOfDay(17, 0, 0),
-                IntervalUnit.HOUR, 1);
+    // A test case for QTZ-389 - some extra constructors didn't set all parameters
+    DailyTimeIntervalTriggerImpl trigger =
+        new DailyTimeIntervalTriggerImpl(
+            "triggerName",
+            "triggerGroup",
+            "jobName",
+            "jobGroup",
+            dateOf(8, 0, 0, 1, 1, 2012),
+            null,
+            new TimeOfDay(8, 0, 0),
+            new TimeOfDay(17, 0, 0),
+            IntervalUnit.HOUR,
+            1);
 
-        assertEquals("triggerName", trigger.getName());
-        assertEquals("triggerGroup", trigger.getGroup());
-        assertEquals("jobName", trigger.getJobName());
-        assertEquals("jobGroup", trigger.getJobGroup());
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getStartTime());
-        assertNull(trigger.getEndTime());
-        assertEquals(new TimeOfDay(8, 0, 0), trigger.getStartTimeOfDay());
-        assertEquals(new TimeOfDay(17, 0, 0), trigger.getEndTimeOfDay());
-        assertEquals(IntervalUnit.HOUR, trigger.getRepeatIntervalUnit());
-        assertEquals(1, trigger.getRepeatInterval());
+    assertEquals("triggerName", trigger.getName());
+    assertEquals("triggerGroup", trigger.getGroup());
+    assertEquals("jobName", trigger.getJobName());
+    assertEquals("jobGroup", trigger.getJobGroup());
+    assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getStartTime());
+    assertNull(trigger.getEndTime());
+    assertEquals(new TimeOfDay(8, 0, 0), trigger.getStartTimeOfDay());
+    assertEquals(new TimeOfDay(17, 0, 0), trigger.getEndTimeOfDay());
+    assertEquals(IntervalUnit.HOUR, trigger.getRepeatIntervalUnit());
+    assertEquals(1, trigger.getRepeatInterval());
 
-        trigger = new DailyTimeIntervalTriggerImpl(
-                "triggerName", "triggerGroup",
-                dateOf(8, 0, 0, 1, 1, 2012), null,
-                new TimeOfDay(8, 0, 0), new TimeOfDay(17, 0, 0),
-                IntervalUnit.HOUR, 1);
+    trigger =
+        new DailyTimeIntervalTriggerImpl(
+            "triggerName",
+            "triggerGroup",
+            dateOf(8, 0, 0, 1, 1, 2012),
+            null,
+            new TimeOfDay(8, 0, 0),
+            new TimeOfDay(17, 0, 0),
+            IntervalUnit.HOUR,
+            1);
 
-        assertEquals("triggerName", trigger.getName());
-        assertEquals("triggerGroup", trigger.getGroup());
-        assertNull(trigger.getJobName());
-        assertEquals("DEFAULT", trigger.getJobGroup());
-        assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getStartTime());
-        assertNull(trigger.getEndTime());
-        assertEquals(new TimeOfDay(8, 0, 0), trigger.getStartTimeOfDay());
-        assertEquals(new TimeOfDay(17, 0, 0), trigger.getEndTimeOfDay());
-        assertEquals(IntervalUnit.HOUR, trigger.getRepeatIntervalUnit());
-        assertEquals(1, trigger.getRepeatInterval());
-    }
+    assertEquals("triggerName", trigger.getName());
+    assertEquals("triggerGroup", trigger.getGroup());
+    assertNull(trigger.getJobName());
+    assertEquals("DEFAULT", trigger.getJobGroup());
+    assertEquals(dateOf(8, 0, 0, 1, 1, 2012), trigger.getStartTime());
+    assertNull(trigger.getEndTime());
+    assertEquals(new TimeOfDay(8, 0, 0), trigger.getStartTimeOfDay());
+    assertEquals(new TimeOfDay(17, 0, 0), trigger.getEndTimeOfDay());
+    assertEquals(IntervalUnit.HOUR, trigger.getRepeatIntervalUnit());
+    assertEquals(1, trigger.getRepeatInterval());
+  }
 
-    @ParameterizedTest
-    @ValueSource(ints = { Integer.MIN_VALUE, 0})
-    void testSetRepeatIntervalWithInvalidValues(int repeatInterval) {
-        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
-        assertThrows(IllegalArgumentException.class, () -> trigger.setRepeatInterval(repeatInterval));
-    }
+  @ParameterizedTest
+  @ValueSource(ints = {Integer.MIN_VALUE, 0})
+  void testSetRepeatIntervalWithInvalidValues(int repeatInterval) {
+    DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
+    assertThrows(IllegalArgumentException.class, () -> trigger.setRepeatInterval(repeatInterval));
+  }
 }

@@ -16,35 +16,29 @@
  */
 package org.quartz;
 
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-
 
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.impl.StdSchedulerFactory;
 
+/** DefaultSchedulerTest */
+class DefaultSchedulerTest {
 
+  @Test
+  void testAddJobNoTrigger() throws Exception {
+    Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+    JobDetailImpl jobDetail = new JobDetailImpl();
+    jobDetail.setName("testjob");
 
-/**
- * DefaultSchedulerTest
- */
-class DefaultSchedulerTest  {
-
-    @Test
-    void testAddJobNoTrigger() throws Exception {
-        Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
-        JobDetailImpl jobDetail = new JobDetailImpl();
-        jobDetail.setName("testjob");
-
-        try {
-            scheduler.addJob(jobDetail, false);
-        } catch (SchedulerException e) {
-            assertThat(e.getMessage(), containsString("durable"));
-        }
-
-        jobDetail.setDurability(true);
-        scheduler.addJob(jobDetail, false);
+    try {
+      scheduler.addJob(jobDetail, false);
+    } catch (SchedulerException e) {
+      assertThat(e.getMessage(), containsString("durable"));
     }
+
+    jobDetail.setDurability(true);
+    scheduler.addJob(jobDetail, false);
+  }
 }

@@ -19,115 +19,114 @@ package org.quartz.listeners;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.quartz.JobExecutionContext;
 import org.quartz.Trigger;
-import org.quartz.TriggerListener;
 import org.quartz.Trigger.CompletedExecutionInstruction;
+import org.quartz.TriggerListener;
 
 /**
- * Holds a List of references to TriggerListener instances and broadcasts all
- * events to them (in order).
+ * Holds a List of references to TriggerListener instances and broadcasts all events to them (in
+ * order).
  *
- * <p>The broadcasting behavior of this listener to delegate listeners may be
- * more convenient than registering all of the listeners directly with the
- * Scheduler, and provides the flexibility of easily changing which listeners
- * get notified.</p>
+ * <p>The broadcasting behavior of this listener to delegate listeners may be more convenient than
+ * registering all of the listeners directly with the Scheduler, and provides the flexibility of
+ * easily changing which listeners get notified.
  *
  * @see #addListener(org.quartz.TriggerListener)
  * @see #removeListener(org.quartz.TriggerListener)
  * @see #removeListener(String)
- *
  * @author James House (jhouse AT revolition DOT net)
  */
 public class BroadcastTriggerListener implements TriggerListener {
 
-    private final String name;
-    private final List<TriggerListener> listeners;
+  private final String name;
+  private final List<TriggerListener> listeners;
 
-    /**
-     * Construct an instance with the given name.
-     *
-     * (Remember to add some delegate listeners!)
-     *
-     * @param name the name of this instance
-     */
-    public BroadcastTriggerListener(String name) {
-        if(name == null) {
-            throw new IllegalArgumentException("Listener name cannot be null!");
-        }
-        this.name = name;
-        listeners = new LinkedList<>();
+  /**
+   * Construct an instance with the given name.
+   *
+   * <p>(Remember to add some delegate listeners!)
+   *
+   * @param name the name of this instance
+   */
+  public BroadcastTriggerListener(String name) {
+    if (name == null) {
+      throw new IllegalArgumentException("Listener name cannot be null!");
     }
+    this.name = name;
+    listeners = new LinkedList<>();
+  }
 
-    /**
-     * Construct an instance with the given name, and List of listeners.
-     *
-     * @param name the name of this instance
-     * @param listeners the initial List of TriggerListeners to broadcast to.
-     */
-    public BroadcastTriggerListener(String name, List<TriggerListener> listeners) {
-        this(name);
-        this.listeners.addAll(listeners);
+  /**
+   * Construct an instance with the given name, and List of listeners.
+   *
+   * @param name the name of this instance
+   * @param listeners the initial List of TriggerListeners to broadcast to.
+   */
+  public BroadcastTriggerListener(String name, List<TriggerListener> listeners) {
+    this(name);
+    this.listeners.addAll(listeners);
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void addListener(TriggerListener listener) {
+    listeners.add(listener);
+  }
+
+  public boolean removeListener(TriggerListener listener) {
+    return listeners.remove(listener);
+  }
+
+  public boolean removeListener(String listenerName) {
+    Iterator<TriggerListener> itr = listeners.iterator();
+    while (itr.hasNext()) {
+      TriggerListener l = itr.next();
+      if (l.getName().equals(listenerName)) {
+        itr.remove();
+        return true;
+      }
     }
+    return false;
+  }
 
-    public String getName() {
-        return name;
+  public List<TriggerListener> getListeners() {
+    return java.util.Collections.unmodifiableList(listeners);
+  }
+
+  public void triggerFired(Trigger trigger, JobExecutionContext context) {
+
+    for (TriggerListener l : listeners) {
+      l.triggerFired(trigger, context);
     }
+  }
 
-    public void addListener(TriggerListener listener) {
-        listeners.add(listener);
+  public boolean vetoJobExecution(Trigger trigger, JobExecutionContext context) {
+
+    for (TriggerListener l : listeners) {
+      if (l.vetoJobExecution(trigger, context)) {
+        return true;
+      }
     }
+    return false;
+  }
 
-    public boolean removeListener(TriggerListener listener) {
-        return listeners.remove(listener);
+  public void triggerMisfired(Trigger trigger) {
+
+    for (TriggerListener l : listeners) {
+      l.triggerMisfired(trigger);
     }
+  }
 
-    public boolean removeListener(String listenerName) {
-        Iterator<TriggerListener> itr = listeners.iterator();
-        while(itr.hasNext()) {
-            TriggerListener l = itr.next();
-            if(l.getName().equals(listenerName)) {
-                itr.remove();
-                return true;
-            }
-        }
-        return false;
+  public void triggerComplete(
+      Trigger trigger,
+      JobExecutionContext context,
+      CompletedExecutionInstruction triggerInstructionCode) {
+
+    for (TriggerListener l : listeners) {
+      l.triggerComplete(trigger, context, triggerInstructionCode);
     }
-
-    public List<TriggerListener> getListeners() {
-        return java.util.Collections.unmodifiableList(listeners);
-    }
-
-    public void triggerFired(Trigger trigger, JobExecutionContext context) {
-
-        for (TriggerListener l : listeners) {
-            l.triggerFired(trigger, context);
-        }
-    }
-
-    public boolean vetoJobExecution(Trigger trigger, JobExecutionContext context) {
-
-        for (TriggerListener l : listeners) {
-            if (l.vetoJobExecution(trigger, context)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public void triggerMisfired(Trigger trigger) {
-
-        for (TriggerListener l : listeners) {
-            l.triggerMisfired(trigger);
-        }
-    }
-
-    public void triggerComplete(Trigger trigger, JobExecutionContext context, CompletedExecutionInstruction triggerInstructionCode) {
-
-        for (TriggerListener l : listeners) {
-            l.triggerComplete(trigger, context, triggerInstructionCode);
-        }
-    }
-
+  }
 }

@@ -16,22 +16,21 @@
  */
 package org.quartz.impl;
 
-import org.hamcrest.Matchers;
-
-import org.junit.jupiter.api.Test;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Test;
+
 class JobDetailImplTest {
-	@Test
-	void testHashCode() {
-		JobDetailImpl job = new JobDetailImpl();
-		assertThat(job.hashCode(), Matchers.is(0));
-		
-		job.setName("test");
-		assertThat(job.hashCode(), Matchers.not(Matchers.is(0)));
-		
-		job.setGroup("test");
-		assertThat(job.hashCode(), Matchers.not(Matchers.is(0)));
-	}
+  @Test
+  void testHashCode() {
+    JobDetailImpl job = new JobDetailImpl();
+    assertThat(job.hashCode(), Matchers.is(0));
+
+    job.setName("test");
+    assertThat(job.hashCode(), Matchers.not(Matchers.is(0)));
+
+    job.setGroup("test");
+    assertThat(job.hashCode(), Matchers.not(Matchers.is(0)));
+  }
 }

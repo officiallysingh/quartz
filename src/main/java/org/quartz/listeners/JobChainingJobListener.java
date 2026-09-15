@@ -18,89 +18,84 @@ package org.quartz.listeners;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 
 /**
- * Keeps a collection of mappings of which Job to trigger after the completion
- * of a given job.  If this listener is notified of a job completing that has a
- * mapping, then it will then attempt to trigger the follow-up job.  This
- * achieves "job chaining", or a "poor man's workflow".
+ * Keeps a collection of mappings of which Job to trigger after the completion of a given job. If
+ * this listener is notified of a job completing that has a mapping, then it will then attempt to
+ * trigger the follow-up job. This achieves "job chaining", or a "poor man's workflow".
  *
- * <p>Generally an instance of this listener would be registered as a global
- * job listener, rather than being registered directly to a given job.</p>
+ * <p>Generally an instance of this listener would be registered as a global job listener, rather
+ * than being registered directly to a given job.
  *
- * <p>If for some reason there is a failure creating the trigger for the
- * follow-up job (which would generally only be caused by a rare serious
- * failure in the system, or the non-existence of the follow-up job), an error
- * message is logged, but no other action is taken. If you need more rigorous
- * handling of the error, consider scheduling the triggering of the flow-up
- * job within your job itself.</p>
+ * <p>If for some reason there is a failure creating the trigger for the follow-up job (which would
+ * generally only be caused by a rare serious failure in the system, or the non-existence of the
+ * follow-up job), an error message is logged, but no other action is taken. If you need more
+ * rigorous handling of the error, consider scheduling the triggering of the flow-up job within your
+ * job itself.
  *
  * @author James House (jhouse AT revolition DOT net)
  */
 public class JobChainingJobListener extends JobListenerSupport {
 
-    private final String name;
-    private final Map<JobKey, JobKey> chainLinks;
+  private final String name;
+  private final Map<JobKey, JobKey> chainLinks;
 
+  /**
+   * Construct an instance with the given name.
+   *
+   * @param name the name of this instance
+   */
+  public JobChainingJobListener(String name) {
+    if (name == null) {
+      throw new IllegalArgumentException("Listener name cannot be null!");
+    }
+    this.name = name;
+    chainLinks = new HashMap<>();
+  }
 
-    /**
-     * Construct an instance with the given name.
-     *
-     * @param name the name of this instance
-     */
-    public JobChainingJobListener(String name) {
-        if(name == null) {
-            throw new IllegalArgumentException("Listener name cannot be null!");
-        }
-        this.name = name;
-        chainLinks = new HashMap<>();
+  public String getName() {
+    return name;
+  }
+
+  /**
+   * Add a chain mapping - when the Job identified by the first key completes the job identified by
+   * the second key will be triggered.
+   *
+   * @param firstJob a JobKey with the name and group of the first job
+   * @param secondJob a JobKey with the name and group of the follow-up job
+   */
+  public void addJobChainLink(JobKey firstJob, JobKey secondJob) {
+
+    if (firstJob == null || secondJob == null) {
+      throw new IllegalArgumentException("Key cannot be null!");
     }
 
-    public String getName() {
-        return name;
+    if (firstJob.getName() == null || secondJob.getName() == null) {
+      throw new IllegalArgumentException("Key cannot have a null name!");
     }
 
-    /**
-     * Add a chain mapping - when the Job identified by the first key completes
-     * the job identified by the second key will be triggered.
-     *
-     * @param firstJob a JobKey with the name and group of the first job
-     * @param secondJob a JobKey with the name and group of the follow-up job
-     */
-    public void addJobChainLink(JobKey firstJob, JobKey secondJob) {
+    chainLinks.put(firstJob, secondJob);
+  }
 
-        if(firstJob == null || secondJob == null) {
-            throw new IllegalArgumentException("Key cannot be null!");
-        }
+  @Override
+  public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
 
-        if(firstJob.getName() == null || secondJob.getName() == null) {
-            throw new IllegalArgumentException("Key cannot have a null name!");
-        }
+    JobKey sj = chainLinks.get(context.getJobDetail().getKey());
 
-        chainLinks.put(firstJob, secondJob);
+    if (sj == null) {
+      return;
     }
 
-    @Override
-    public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
+    getLog().info("Job '{}' will now chain to Job '{}'", context.getJobDetail().getKey(), sj);
 
-        JobKey sj = chainLinks.get(context.getJobDetail().getKey());
-
-        if(sj == null) {
-            return;
-        }
-
-        getLog().info("Job '{}' will now chain to Job '{}'", context.getJobDetail().getKey(), sj);
-
-        try {
-             context.getScheduler().triggerJob(sj);
-        } catch(SchedulerException se) {
-            getLog().error("Error encountered during chaining to Job '{}'", sj, se);
-        }
+    try {
+      context.getScheduler().triggerJob(sj);
+    } catch (SchedulerException se) {
+      getLog().error("Error encountered during chaining to Job '{}'", sj, se);
     }
+  }
 }
-
