@@ -57,7 +57,7 @@ class QTZ336_MissSchedulingChangeSignalTest {
   @Test
   void simpleScheduleAlwaysFiredUnder20s() throws Exception {
     Properties properties = new Properties();
-    InputStream propertiesIs = getClass().getResourceAsStream("/org/quartz/quartz.properties");
+    InputStream propertiesIs = getClass().getResourceAsStream("/quartz.properties");
     try {
       properties.load(propertiesIs);
     } finally {

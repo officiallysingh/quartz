@@ -63,9 +63,9 @@ import org.slf4j.Logger;
  * </code> file.
  *
  * <p>By default a properties file named "quartz.properties" is loaded from the 'current working
- * directory'. If that fails, then the "quartz.properties" file located (as a resource) in the
- * org/quartz package is loaded. If you wish to use a file other than these defaults, you must
- * define the system property 'org.quartz.properties' to point to the file you want.
+ * directory'. If that fails, then the "quartz.properties" file located (as a resource) on the
+ * classpath root is loaded. If you wish to use a file other than these defaults, you must define
+ * the system property 'org.quartz.properties' to point to the file you want.
  *
  * <p>Alternatively, you can explicitly initialize the factory by calling one of the <code>
  * initialize(xx)</code> methods before calling <code>getScheduler()</code>.
@@ -252,9 +252,9 @@ public class StdSchedulerFactory implements SchedulerFactory {
    * Properties</code> file and overriding System properties.
    *
    * <p>By default a properties file named "quartz.properties" is loaded from the 'current working
-   * directory'. If that fails, then the "quartz.properties" file located (as a resource) in the
-   * org/quartz package is loaded. If you wish to use a file other than these defaults, you must
-   * define the system property 'org.quartz.properties' to point to the file you want.
+   * directory'. If that fails, then the "quartz.properties" file located (as a resource) on the
+   * classpath root is loaded. If you wish to use a file other than these defaults, you must define
+   * the system property 'org.quartz.properties' to point to the file you want.
    *
    * <p>System properties (environment variables, and -D definitions on the command-line when
    * running the JVM) override any properties in the loaded file. For this reason, you may want to
@@ -319,7 +319,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
         }
 
       } else {
-        propSrc = "default resource file in Quartz package: 'quartz.properties'";
+        propSrc = "default classpath resource: 'quartz.properties'";
 
         ClassLoader cl = getClass().getClassLoader();
         if (cl == null) cl = findClassLoader();
@@ -333,9 +333,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
           in = cl.getResourceAsStream("/quartz.properties");
         }
         if (in == null) {
-          in = cl.getResourceAsStream("org/quartz/quartz.properties");
-        }
-        if (in == null) {
           initException =
               new SchedulerException("Default quartz.properties not found in class path");
           throw initException;
@@ -345,7 +342,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
         } catch (IOException ioe) {
           initException =
               new SchedulerException(
-                  "Resource properties file: 'org/quartz/quartz.properties' "
+                  "Resource properties file: 'quartz.properties' "
                       + "could not be read from the classpath.",
                   ioe);
           throw initException;

@@ -35,7 +35,7 @@ public class SchedulerDetailsSetterTest {
   @Test
   void testSetter() throws SchedulerException, IOException {
     Properties props = new Properties();
-    props.load(getClass().getResourceAsStream("/org/quartz/quartz.properties"));
+    props.load(getClass().getResourceAsStream("/quartz.properties"));
     props.setProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS, MyThreadPool.class.getName());
     props.setProperty(StdSchedulerFactory.PROP_JOB_STORE_CLASS, MyJobStore.class.getName());
 
