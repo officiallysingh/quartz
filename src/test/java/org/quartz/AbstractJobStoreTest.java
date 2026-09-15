@@ -57,6 +57,8 @@ import org.quartz.spi.TriggerFiredResult;
  * QUARTZ-306.
  */
 public abstract class AbstractJobStoreTest {
+  private static final String FIXTURE_STORE_NAME = "AbstractJobStoreTest";
+
   private JobStore fJobStore;
   private JobDetailImpl fJobDetail;
   private SampleSignaler fSignaler;
@@ -69,7 +71,8 @@ public abstract class AbstractJobStoreTest {
     this.fSignaler = new SampleSignaler();
     ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
     loadHelper.initialize();
-    this.fJobStore = createJobStore("AbstractJobStoreTest");
+    // Stable fixture name; persistent JobStore implementations must isolate storage per create.
+    this.fJobStore = createJobStore(FIXTURE_STORE_NAME);
     this.fJobStore.initialize(loadHelper, this.fSignaler);
     this.fJobStore.schedulerStarted();
 
@@ -80,7 +83,9 @@ public abstract class AbstractJobStoreTest {
 
   @AfterEach
   protected void tearDown() {
-    destroyJobStore("AbstractJobStoreTest");
+    // Only the shared fixture — extra stores created by a test (incl. @TestFactory) must remain
+    // until that test/factory finishes; subclasses with durable stores isolate via unique DBs.
+    destroyJobStore(FIXTURE_STORE_NAME);
   }
 
   /**

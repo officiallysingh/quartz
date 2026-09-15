@@ -32,7 +32,9 @@ public class RAMJobStoreTest extends AbstractJobStoreTest {
   }
 
   @Override
-  protected void destroyJobStore(String name) {}
+  protected void destroyJobStore(String name) {
+    stores.remove(name);
+  }
 
   @Override
   protected Map<String, JobStore> stores() {

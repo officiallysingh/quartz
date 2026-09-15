@@ -60,10 +60,6 @@ public class QuartzProperties {
   @NestedConfigurationProperty
   private final Mongodb mongodb = new Mongodb();
 
-  @Setter(AccessLevel.NONE)
-  @NestedConfigurationProperty
-  private final Xml xml = new Xml();
-
   @Getter
   @Setter
   public static class ThreadPool {
@@ -107,21 +103,5 @@ public class QuartzProperties {
       this.collectionPrefix =
           (collectionPrefix == null || collectionPrefix.isBlank()) ? "qrtz_" : collectionPrefix;
     }
-  }
-
-  @Getter
-  @Setter
-  public static class Xml {
-
-    /** Load jobs from XML via {@code XMLSchedulingDataProcessorPlugin}. */
-    private boolean enabled = false;
-
-    /** Comma-separated classpath or file paths. */
-    private String fileNames = "quartz_data.xml";
-
-    private boolean failOnFileNotFound = true;
-
-    /** Rescan interval; 0 disables scanning. */
-    private Duration scanInterval = Duration.ZERO;
   }
 }

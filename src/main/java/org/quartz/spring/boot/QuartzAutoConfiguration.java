@@ -126,20 +126,6 @@ public class QuartzAutoConfiguration {
       quartz.setProperty(StdSchedulerFactory.PROP_JOB_STORE_CLASS, RAMJobStore.class.getName());
     }
 
-    if (properties.getXml().isEnabled()) {
-      quartz.setProperty(
-          "org.quartz.plugin.jobInitializer.class",
-          "org.quartz.plugins.xml.XMLSchedulingDataProcessorPlugin");
-      quartz.setProperty(
-          "org.quartz.plugin.jobInitializer.fileNames", properties.getXml().getFileNames());
-      quartz.setProperty(
-          "org.quartz.plugin.jobInitializer.failOnFileNotFound",
-          Boolean.toString(properties.getXml().isFailOnFileNotFound()));
-      quartz.setProperty(
-          "org.quartz.plugin.jobInitializer.scanInterval",
-          Long.toString(properties.getXml().getScanInterval().toSeconds()));
-    }
-
     properties.getProperties().forEach(quartz::setProperty);
     return quartz;
   }

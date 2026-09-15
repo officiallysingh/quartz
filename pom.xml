@@ -26,7 +26,6 @@
 
         <slf4j.version>2.0.17</slf4j.version>
         <mongodb.driver.version>5.6.4</mongodb.driver.version>
-        <jakarta.xml.bind.version>4.0.5</jakarta.xml.bind.version>
         <junit.bom.version>6.0.1</junit.bom.version>
         <mockito.version>5.20.0</mockito.version>
         <testcontainers.version>1.21.4</testcontainers.version>
@@ -65,11 +64,7 @@
             <artifactId>mongodb-driver-sync</artifactId>
             <version>${mongodb.driver.version}</version>
         </dependency>
-        <dependency>
-            <groupId>jakarta.xml.bind</groupId>
-            <artifactId>jakarta.xml.bind-api</artifactId>
-            <version>${jakarta.xml.bind.version}</version>
-        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

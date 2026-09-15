@@ -99,6 +99,10 @@ public class MongoJobStore implements JobStore {
     this.dbName = dbName;
   }
 
+  public String getDbName() {
+    return dbName;
+  }
+
   public void setCollectionPrefix(String collectionPrefix) {
     this.collectionPrefix =
         (collectionPrefix == null || collectionPrefix.isBlank())
