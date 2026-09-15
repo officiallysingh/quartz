@@ -1,18 +1,7 @@
 == Quartz Scheduler
 
-Quartz is a richly featured, open source job scheduling library that can be 
-integrated within virtually any Java application - from the smallest stand-alone 
-application to the largest e-commerce system.
-
-See <<docs/index.md#,Full Documentation>>
-
-Status of the build:
-[link="https://dev.azure.com/TerracottaCI/quartz/_build/latest?definitionId=24"]
-image::https://dev.azure.com/TerracottaCI/quartz/_apis/build/status/quartz-scheduler.quartz[Build Status]
-
-== Quick Links
-
-https://www.quartz-scheduler.org/community/contribute.html
+Quartz is a job scheduling library. This repository is a single Maven project
+for scheduling and executing jobs.
 
 == This fork (3.0)
 
@@ -23,6 +12,12 @@ https://www.quartz-scheduler.org/community/contribute.html
 * Clustering needs a MongoDB replica set and NTP-synced clocks.
 * Keep this library off `spring-boot-starter-quartz` (that starter still assumes JDBC). Inject Boot's `MongoClient` into `MongoJobStore.setMongoClient(...)` and do not close it from the job store.
 
+Build:
+
+```
+mvn test
+```
+
 Example:
 
 ```
@@ -32,4 +27,3 @@ org.quartz.jobStore.dbName=quartz
 org.quartz.jobStore.isClustered=true
 org.quartz.scheduler.instanceId=AUTO
 ```
-
