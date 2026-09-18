@@ -4,6 +4,18 @@
       "name": "quartz.scheduler",
       "type": "org.quartz.spring.boot.QuartzProperties",
       "sourceType": "org.quartz.spring.boot.QuartzProperties"
+    },
+    {
+      "name": "quartz.scheduler.thread-pool",
+      "type": "org.quartz.spring.boot.QuartzProperties$ThreadPool",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
+      "sourceMethod": "getThreadPool()"
+    },
+    {
+      "name": "quartz.scheduler.mongodb",
+      "type": "org.quartz.spring.boot.QuartzProperties$Mongodb",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
+      "sourceMethod": "getMongodb()"
     }
   ],
   "properties": [
@@ -31,54 +43,99 @@
     {
       "name": "quartz.scheduler.instance-id",
       "type": "java.lang.String",
-      "description": "Scheduler instance id. Defaults to AUTO when clustered, NON_CLUSTERED otherwise."
+      "description": "Scheduler instance id. Defaults to AUTO when clustered, NON_CLUSTERED otherwise.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties"
     },
     {
       "name": "quartz.scheduler.auto-startup",
       "type": "java.lang.Boolean",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": true
     },
     {
       "name": "quartz.scheduler.startup-delay",
       "type": "java.time.Duration",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": "0s"
     },
     {
       "name": "quartz.scheduler.wait-for-jobs-to-complete-on-shutdown",
       "type": "java.lang.Boolean",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": true
     },
     {
       "name": "quartz.scheduler.overwrite-existing-jobs",
       "type": "java.lang.Boolean",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": false
+    },
+    {
+      "name": "quartz.scheduler.misfire-threshold",
+      "type": "java.time.Duration",
+      "description": "How late a trigger may fire before it is considered a misfire. Unitless numbers are milliseconds. Examples: 120s, 2m, 120000ms, 120000.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
+      "defaultValue": "60s"
+    },
+    {
+      "name": "quartz.scheduler.clustered",
+      "type": "java.lang.Boolean",
+      "description": "Multi-JVM clustering. Requires MongoDB, a replica set, and NTP. Ignored for RAM.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "quartz.scheduler.cluster-checkin-interval",
+      "type": "java.time.Duration",
+      "description": "Cluster check-in interval. Unitless numbers are milliseconds. Examples: 15s, 15000ms, 15000.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
+      "defaultValue": "15s"
+    },
+    {
+      "name": "quartz.scheduler.properties",
+      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "description": "Extra org.quartz.* keys overlayed last.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties"
     },
     {
       "name": "quartz.scheduler.thread-pool.thread-count",
       "type": "java.lang.Integer",
+      "description": "Worker threads / max concurrent virtual jobs.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties$ThreadPool",
       "defaultValue": 10
     },
     {
-      "name": "quartz.scheduler.mongodb.database",
-      "type": "java.lang.String",
-      "description": "Mongo database for Quartz collections. When unset, uses the application's spring.mongodb.database (or the database in the Mongo URI)."
+      "name": "quartz.scheduler.thread-pool.thread-priority",
+      "type": "java.lang.Integer",
+      "description": "SimpleThreadPool thread priority. Unused when virtual is true.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties$ThreadPool",
+      "defaultValue": 5
     },
     {
-      "name": "quartz.scheduler.mongodb.collection-prefix",
-      "type": "java.lang.String",
-      "description": "Prefix for Quartz collections (qrtz_jobs, qrtz_triggers, …).",
-      "sourceType": "org.quartz.spring.boot.QuartzProperties",
-      "defaultValue": "qrtz_"
-    },
-    {
-      "name": "quartz.scheduler.mongodb.clustered",
+      "name": "quartz.scheduler.thread-pool.virtual",
       "type": "java.lang.Boolean",
+      "description": "When true, use VirtualThreadPool instead of SimpleThreadPool. thread-count still caps concurrency.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties$ThreadPool",
       "defaultValue": false
     },
     {
       "name": "quartz.scheduler.mongodb.uri",
       "type": "java.lang.String",
-      "description": "Used only when no MongoClient bean is present."
+      "description": "Used only when no MongoClient bean is present.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties$Mongodb"
+    },
+    {
+      "name": "quartz.scheduler.mongodb.database",
+      "type": "java.lang.String",
+      "description": "Mongo database for Quartz collections. When unset, uses the application's spring.mongodb.database (or the database in the Mongo URI).",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties$Mongodb"
+    },
+    {
+      "name": "quartz.scheduler.mongodb.collection-prefix",
+      "type": "java.lang.String",
+      "description": "Prefix for Quartz collections (qrtz_jobs, qrtz_triggers, …).",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties$Mongodb",
+      "defaultValue": "qrtz_"
     }
   ]
 }

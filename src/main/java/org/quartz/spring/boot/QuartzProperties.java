@@ -1,6 +1,7 @@
 package org.quartz.spring.boot;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.AccessLevel;
@@ -8,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
+import org.springframework.boot.convert.DurationUnit;
 
 /** {@code quartz.scheduler.*} settings for this fork's Spring Boot auto-configuration. */
 @Getter
@@ -41,6 +43,26 @@ public class QuartzProperties {
 
   /** Replace existing job definitions when registering Spring {@code JobDetail} beans. */
   private boolean overwriteExistingJobs = false;
+
+  /**
+   * How late a trigger may fire before it is considered a misfire ({@code
+   * org.quartz.jobStore.misfireThreshold}). Unitless numbers are milliseconds.
+   */
+  @DurationUnit(ChronoUnit.MILLIS)
+  private Duration misfireThreshold = Duration.ofSeconds(60);
+
+  /**
+   * Multi-JVM clustering ({@code org.quartz.jobStore.isClustered}). Requires MongoDB, a replica
+   * set, and NTP. Ignored for RAM.
+   */
+  private boolean clustered = false;
+
+  /**
+   * Cluster check-in interval ({@code org.quartz.jobStore.clusterCheckinInterval}). Unitless
+   * numbers are milliseconds.
+   */
+  @DurationUnit(ChronoUnit.MILLIS)
+  private Duration clusterCheckinInterval = Duration.ofSeconds(15);
 
   /** Extra Quartz keys ({@code org.quartz.*}). Overlayed last. */
   @Setter(AccessLevel.NONE)
@@ -87,11 +109,6 @@ public class QuartzProperties {
     /** Prefix for Quartz collections ({@code qrtz_jobs}, {@code qrtz_triggers}, …). */
     @Setter(AccessLevel.NONE)
     private String collectionPrefix = "qrtz_";
-
-    /** Multi-JVM clustering (needs a replica set and NTP). */
-    private boolean clustered = false;
-
-    private Duration clusterCheckinInterval = Duration.ofSeconds(15);
 
     public void setCollectionPrefix(String collectionPrefix) {
       this.collectionPrefix =

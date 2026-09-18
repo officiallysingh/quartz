@@ -424,7 +424,7 @@ Parity target: **same operational semantics as JDBC clustered Quartz**, not same
 | BOOT-04 | `startup-delay` |
 | BOOT-05 | `name` / `instance-id` |
 | BOOT-06 | Feature toggle `enabled` |
-| BOOT-07 | Mongo props: uri, database, prefix, clustered, checkin-interval |
+| BOOT-07 | Mongo props: uri, database, prefix; cluster props at `quartz.scheduler.clustered` / `cluster-checkin-interval`; `misfire-threshold` as Duration |
 | BOOT-08 | Fallback database from `spring.mongodb` / `spring.data.mongodb` |
 | BOOT-09 | Job autowiring: services, `@Value`, optional `@Transactional` on collaborators (not Quartz JTA) |
 | BOOT-10 | Context shutdown order with Spring |

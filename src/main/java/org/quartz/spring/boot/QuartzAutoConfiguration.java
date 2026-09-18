@@ -2,6 +2,7 @@ package org.quartz.spring.boot;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.client.MongoClient;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 import org.quartz.Calendar;
@@ -29,10 +30,7 @@ import org.springframework.util.StringUtils;
  * is omitted; MongoDB and RAM stores are configured instead.
  */
 @AutoConfiguration(
-    afterName = {
-      "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration",
-      "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration"
-    })
+    afterName = {"org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration"})
 @ConditionalOnClass(Scheduler.class)
 @ConditionalOnProperty(prefix = "quartz.scheduler", name = "enabled", matchIfMissing = true)
 @EnableConfigurationProperties(QuartzProperties.class)
@@ -97,9 +95,11 @@ public class QuartzAutoConfiguration {
           "org.quartz.threadPool.threadPriority",
           Integer.toString(properties.getThreadPool().getThreadPriority()));
     }
-    quartz.setProperty("org.quartz.jobStore.misfireThreshold", "60000");
+    quartz.setProperty(
+        "org.quartz.jobStore.misfireThreshold",
+        Long.toString(toMillis(properties.getMisfireThreshold(), Duration.ofSeconds(60))));
 
-    boolean clustered = storeType == JobStoreType.MONGODB && properties.getMongodb().isClustered();
+    boolean clustered = storeType == JobStoreType.MONGODB && properties.isClustered();
     String instanceId = properties.getInstanceId();
     if (!StringUtils.hasText(instanceId)) {
       instanceId =
@@ -118,10 +118,10 @@ public class QuartzAutoConfiguration {
       }
       quartz.setProperty("org.quartz.jobStore.dbName", resolveDatabase(properties, environment));
       quartz.setProperty("org.quartz.jobStore.collectionPrefix", resolveCollectionPrefix(mongo));
-      quartz.setProperty("org.quartz.jobStore.isClustered", Boolean.toString(mongo.isClustered()));
+      quartz.setProperty("org.quartz.jobStore.isClustered", Boolean.toString(clustered));
       quartz.setProperty(
           "org.quartz.jobStore.clusterCheckinInterval",
-          Long.toString(mongo.getClusterCheckinInterval().toMillis()));
+          Long.toString(toMillis(properties.getClusterCheckinInterval(), Duration.ofSeconds(15))));
     } else {
       quartz.setProperty(StdSchedulerFactory.PROP_JOB_STORE_CLASS, RAMJobStore.class.getName());
     }
@@ -160,6 +160,11 @@ public class QuartzAutoConfiguration {
       }
     }
     return "test";
+  }
+
+  static long toMillis(Duration duration, Duration fallback) {
+    Duration value = duration != null ? duration : fallback;
+    return value.toMillis();
   }
 
   private static String firstProperty(Environment environment, String... keys) {

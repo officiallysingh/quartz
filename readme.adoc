@@ -23,12 +23,15 @@ quartz:
     name: quartzScheduler
     auto-startup: true
     wait-for-jobs-to-complete-on-shutdown: true
+    clustered: true              # replica set + NTP; Mongo only
+    cluster-checkin-interval: 15s
+    misfire-threshold: 60s       # 120s, 2m, 120000ms, or 120000
     thread-pool:
       thread-count: 10
+      virtual: false
     mongodb:
       # database: oxneer     # optional; defaults to spring.mongodb.database
       collection-prefix: qrtz_
-      clustered: true            # replica set + NTP
     # properties:
     #   org.quartz.threadPool.threadCount: "10"
 ```

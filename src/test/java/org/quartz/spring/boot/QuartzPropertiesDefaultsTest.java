@@ -112,4 +112,46 @@ class QuartzPropertiesDefaultsTest {
         org.quartz.simpl.VirtualThreadPool.class.getName(),
         quartz.getProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS));
   }
+
+  @Test
+  void misfireThresholdDefaultsToSixtySeconds() {
+    QuartzProperties properties = new QuartzProperties();
+    var quartz =
+        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    assertEquals("60000", quartz.getProperty("org.quartz.jobStore.misfireThreshold"));
+  }
+
+  @Test
+  void misfireThresholdDurationIsWrittenAsMillis() {
+    QuartzProperties properties = new QuartzProperties();
+    properties.setMisfireThreshold(java.time.Duration.ofSeconds(120));
+    var quartz =
+        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    assertEquals("120000", quartz.getProperty("org.quartz.jobStore.misfireThreshold"));
+  }
+
+  @Test
+  void clusteredAndCheckinIntervalAreSchedulerLevel() {
+    QuartzProperties properties = new QuartzProperties();
+    properties.setClustered(true);
+    properties.setClusterCheckinInterval(java.time.Duration.ofSeconds(20));
+    var quartz =
+        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MONGODB, null, null);
+    assertEquals("true", quartz.getProperty("org.quartz.jobStore.isClustered"));
+    assertEquals("20000", quartz.getProperty("org.quartz.jobStore.clusterCheckinInterval"));
+    assertEquals(
+        StdSchedulerFactory.AUTO_GENERATE_INSTANCE_ID,
+        quartz.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID));
+  }
+
+  @Test
+  void clusteredIsIgnoredForRamStore() {
+    QuartzProperties properties = new QuartzProperties();
+    properties.setClustered(true);
+    var quartz =
+        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    assertEquals(
+        StdSchedulerFactory.DEFAULT_INSTANCE_ID,
+        quartz.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID));
+  }
 }
