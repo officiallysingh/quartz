@@ -11,7 +11,7 @@ Use it against a **Spring Boot app** that depends on this jar and has **removed*
 ### Goals
 
 1. Prove **behavioral parity** with upstream Quartz for: job/trigger construction, fire timing, misfires, calendars, listeners, concurrency annotations, interrupt, pause/resume, standby/shutdown, clustering *semantics*, and Spring Boot wiring.
-2. Prove **this fork’s intentional differences** work correctly: `java.time.Instant` public fire times, `Duration`/`Period`/`DayOfWeek` builders, `VirtualThreadPool`, Mongo job store, Spring `spring.quartz.*` auto-config.
+2. Prove **this fork’s intentional differences** work correctly: `java.time.Instant` public fire times, `Duration`/`Period`/`DayOfWeek` builders, `VirtualThreadPool`, Mongo job store, Spring `quartz.scheduler.*` auto-config.
 3. Catch regressions early with a **scenario matrix** that can be executed as unit, integration, and multi-node tests.
 
 ### Non-goals (persistence exception)
@@ -37,7 +37,7 @@ Do not test as product features:
 - JTA / `wrapJobExecutionInUserTransaction` / `@ExecuteInJTATransaction`
 - Management REST service
 - Built-in plugins package (`XMLSchedulingDataProcessor`, History, ShutdownHook, etc.)
-- `spring.quartz.xml.*` (stale metadata only — not implemented)
+- XML job scheduling plugins
 - Terracotta / non-Mongo clustering backends
 - `@Durable` annotation (durability is `JobBuilder.storeDurably()` / `JobDetail.isDurable()` only)
 
@@ -52,7 +52,7 @@ Run the same scenario packs against:
 | Env | Job store | Cluster | Thread pool | Purpose |
 |---|---|---|---|---|
 | A | `MEMORY` (RAM) | No | Simple | Fast functional parity |
-| B | `MEMORY` | No | Virtual (`spring.quartz.thread-pool.virtual=true`) | VT pool parity |
+| B | `MEMORY` | No | Virtual (`quartz.scheduler.thread-pool.virtual=true`) | VT pool parity |
 | C | `MONGODB` (standalone) | `clustered=false` | Simple | Persistence across restart |
 | D | `MONGODB` replica set | `clustered=true`, 2+ app instances | Simple | Cluster / failover |
 | E | Spring Boot auto-config (`AUTO`) | As configured | Both | Boot bean registration + DI jobs |
@@ -63,7 +63,7 @@ Run the same scenario packs against:
 
 - JDK matching the fork (Java 26 toolchain in this repo).
 - MongoDB for C/D (replica set + roughly synced clocks for clustering).
-- Two JVMs / containers for Env D (distinct `instanceId`, same `scheduler-name` / instance name, same DB).
+- Two JVMs / containers for Env D (distinct `instanceId`, same `quartz.scheduler.name` / instance name, same DB).
 - Optional: NTP check on cluster hosts (document clock skew failures separately).
 
 ---
@@ -131,8 +131,8 @@ Official Quartz apps build schedules many ways. Exercise **all** construction pa
 | SB-05 | `overwrite-existing-jobs=true` vs `false` | Reschedule vs leave existing (Mongo Env C especially) |
 | SB-06 | Job class extending nothing / implementing `Job` with constructor DI | Autowired dependencies non-null |
 | SB-07 | `QuartzSchedulerCustomizer` bean | Customizations applied before start |
-| SB-08 | `spring.quartz.properties` map overlay (`org.quartz.*`) | Overrides win as documented |
-| SB-09 | `spring.quartz.enabled=false` | No scheduler bean / no scheduling |
+| SB-08 | `quartz.scheduler.properties` map overlay (`org.quartz.*`) | Overrides win as documented |
+| SB-09 | `quartz.scheduler.enabled=false` | No scheduler bean / no scheduling |
 | SB-10 | `job-store-type`: `AUTO`, `MEMORY`, `MONGODB` | Correct store class; AUTO picks Mongo when URI present |
 
 ### 4.5 Factory paths (non-Boot or hybrid)
@@ -260,7 +260,7 @@ For **each** trigger type, cover: create → schedule → fire → query next/pr
 | MF-01 | Force misfire: `standby` or stop acquire long enough past `misfireThreshold`, then resume |
 | MF-02 | Each misfire instruction per trigger type (§5) — count fires after recovery |
 | MF-03 | `misfireThreshold` property change effect |
-| MF-04 | Scheduler `idleWaitTime` / batch acquisition props (if set via `spring.quartz.properties`) |
+| MF-04 | Scheduler `idleWaitTime` / batch acquisition props (if set via `quartz.scheduler.properties`) |
 | MF-05 | System clock jump forward / backward (document; optional chaos) |
 | MF-06 | Dense schedule (many triggers due) with `threadCount=1` | No silent drop; eventually catches up per policy |
 
@@ -419,10 +419,10 @@ Parity target: **same operational semantics as JDBC clustered Quartz**, not same
 | ID | Scenario |
 |---|---|
 | BOOT-01 | App starts with only this dependency (no starter-quartz) |
-| BOOT-02 | `spring.quartz.*` YAML binding (kebab-case) |
+| BOOT-02 | `quartz.scheduler.*` YAML binding (kebab-case) |
 | BOOT-03 | `auto-startup=false` → manual `scheduler.start()` |
 | BOOT-04 | `startup-delay` |
-| BOOT-05 | `scheduler-name` / `instance-id` |
+| BOOT-05 | `name` / `instance-id` |
 | BOOT-06 | Feature toggle `enabled` |
 | BOOT-07 | Mongo props: uri, database, prefix, clustered, checkin-interval |
 | BOOT-08 | Fallback database from `spring.mongodb` / `spring.data.mongodb` |

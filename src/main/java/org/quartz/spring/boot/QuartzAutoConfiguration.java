@@ -34,7 +34,7 @@ import org.springframework.util.StringUtils;
       "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration"
     })
 @ConditionalOnClass(Scheduler.class)
-@ConditionalOnProperty(prefix = "spring.quartz", name = "enabled", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "quartz.scheduler", name = "enabled", matchIfMissing = true)
 @EnableConfigurationProperties(QuartzProperties.class)
 public class QuartzAutoConfiguration {
 
@@ -83,7 +83,7 @@ public class QuartzAutoConfiguration {
       MongoClient mongoClient,
       Environment environment) {
     Properties quartz = new Properties();
-    quartz.setProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME, properties.getSchedulerName());
+    quartz.setProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME, properties.getName());
     String threadPoolClass =
         properties.getThreadPool().isVirtual()
             ? VirtualThreadPool.class.getName()
@@ -178,7 +178,7 @@ public class QuartzAutoConfiguration {
     }
     try {
       return new ConnectionString(uri).getDatabase();
-    } catch (RuntimeException ex) {
+    } catch (RuntimeException _) {
       return null;
     }
   }

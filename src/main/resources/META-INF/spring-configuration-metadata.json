@@ -1,89 +1,84 @@
 {
   "groups": [
     {
-      "name": "spring.quartz",
+      "name": "quartz.scheduler",
       "type": "org.quartz.spring.boot.QuartzProperties",
       "sourceType": "org.quartz.spring.boot.QuartzProperties"
     }
   ],
   "properties": [
     {
-      "name": "spring.quartz.enabled",
+      "name": "quartz.scheduler.enabled",
       "type": "java.lang.Boolean",
       "description": "Whether Quartz auto-configuration is enabled.",
       "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": true
     },
     {
-      "name": "spring.quartz.job-store-type",
+      "name": "quartz.scheduler.job-store-type",
       "type": "org.quartz.spring.boot.JobStoreType",
       "description": "Job store. AUTO uses MongoDB when a MongoClient bean exists, otherwise RAM.",
       "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": "auto"
     },
     {
-      "name": "spring.quartz.scheduler-name",
+      "name": "quartz.scheduler.name",
       "type": "java.lang.String",
       "description": "Scheduler instance name.",
       "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": "quartzScheduler"
     },
     {
-      "name": "spring.quartz.instance-id",
+      "name": "quartz.scheduler.instance-id",
       "type": "java.lang.String",
       "description": "Scheduler instance id. Defaults to AUTO when clustered, NON_CLUSTERED otherwise."
     },
     {
-      "name": "spring.quartz.auto-startup",
+      "name": "quartz.scheduler.auto-startup",
       "type": "java.lang.Boolean",
       "defaultValue": true
     },
     {
-      "name": "spring.quartz.startup-delay",
+      "name": "quartz.scheduler.startup-delay",
       "type": "java.time.Duration",
       "defaultValue": "0s"
     },
     {
-      "name": "spring.quartz.wait-for-jobs-to-complete-on-shutdown",
+      "name": "quartz.scheduler.wait-for-jobs-to-complete-on-shutdown",
       "type": "java.lang.Boolean",
       "defaultValue": true
     },
     {
-      "name": "spring.quartz.overwrite-existing-jobs",
+      "name": "quartz.scheduler.overwrite-existing-jobs",
       "type": "java.lang.Boolean",
       "defaultValue": false
     },
     {
-      "name": "spring.quartz.thread-pool.thread-count",
+      "name": "quartz.scheduler.thread-pool.thread-count",
       "type": "java.lang.Integer",
       "defaultValue": 10
     },
     {
-      "name": "spring.quartz.mongodb.database",
+      "name": "quartz.scheduler.mongodb.database",
       "type": "java.lang.String",
       "description": "Mongo database for Quartz collections. When unset, uses the application's spring.mongodb.database (or the database in the Mongo URI)."
     },
     {
-      "name": "spring.quartz.mongodb.collection-prefix",
+      "name": "quartz.scheduler.mongodb.collection-prefix",
       "type": "java.lang.String",
       "description": "Prefix for Quartz collections (qrtz_jobs, qrtz_triggers, …).",
       "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": "qrtz_"
     },
     {
-      "name": "spring.quartz.mongodb.clustered",
+      "name": "quartz.scheduler.mongodb.clustered",
       "type": "java.lang.Boolean",
       "defaultValue": false
     },
     {
-      "name": "spring.quartz.mongodb.uri",
+      "name": "quartz.scheduler.mongodb.uri",
       "type": "java.lang.String",
       "description": "Used only when no MongoClient bean is present."
-    },
-    {
-      "name": "spring.quartz.xml.enabled",
-      "type": "java.lang.Boolean",
-      "defaultValue": false
     }
   ]
 }

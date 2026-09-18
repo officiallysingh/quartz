@@ -19,7 +19,7 @@ public class SpringMongoJobStore extends org.quartz.impl.mongodb.MongoJobStore {
     }
     if (getMongoClient() == null && (getMongoUri() == null || getMongoUri().isBlank())) {
       throw new SchedulerConfigException(
-          "MongoDB job store needs a MongoClient bean or spring.quartz.mongodb.uri");
+          "MongoDB job store needs a MongoClient bean or quartz.scheduler.mongodb.uri");
     }
     super.initialize(loadHelper, signaler);
   }

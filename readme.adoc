@@ -17,10 +17,10 @@ for scheduling and executing jobs.
 YAML (in the Spring Boot application):
 
 ```
-spring:
-  quartz:
+quartz:
+  scheduler:
     job-store-type: auto          # mongodb if a MongoClient bean exists, otherwise ram
-    scheduler-name: quartzScheduler
+    name: quartzScheduler
     auto-startup: true
     wait-for-jobs-to-complete-on-shutdown: true
     thread-pool:

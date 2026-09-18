@@ -24,7 +24,7 @@
         <testcontainers.version>1.21.4</testcontainers.version>
         <hamcrest.version>3.0</hamcrest.version>
         <logback.version>1.6.3</logback.version>
-        <asm.version>9.9</asm.version>
+        <asm.version>9.10.1</asm.version>
         <lombok.version>1.18.46</lombok.version>
 
         <fmt-maven-plugin.version>2.29</fmt-maven-plugin.version>

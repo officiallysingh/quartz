@@ -9,16 +9,10 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
-/**
- * {@code spring.quartz.*} settings, aligned with Spring Boot's Quartz property names where they
- * still apply to this fork.
- *
- * @see <a
- *     href="https://github.com/spring-projects/spring-boot/tree/main/module/spring-boot-quartz">spring-boot-quartz</a>
- */
+/** {@code quartz.scheduler.*} settings for this fork's Spring Boot auto-configuration. */
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "spring.quartz")
+@ConfigurationProperties(prefix = "quartz.scheduler")
 public class QuartzProperties {
 
   /** Whether Quartz auto-configuration is enabled. */
@@ -31,7 +25,7 @@ public class QuartzProperties {
   private JobStoreType jobStoreType = JobStoreType.AUTO;
 
   /** Scheduler instance name ({@code org.quartz.scheduler.instanceName}). */
-  private String schedulerName = "quartzScheduler";
+  private String name = "quartzScheduler";
 
   /** Scheduler instance id. Empty means AUTO when clustered, NON_CLUSTERED otherwise. */
   private String instanceId;
