@@ -45,7 +45,7 @@ import org.quartz.impl.matchers.GroupMatcher;
  * their name and group for uniqueness.
  *
  * <p>This library ships two implementations: {@link org.quartz.simpl.RAMJobStore} (volatile) and
- * {@link org.quartz.impl.mongodb.MongoJobStore} (persistent / clustered).
+ * {@link org.quartz.impl.mongodb.MongoJobStore} (persistent / clustered, JDBC-style collections).
  *
  * @see org.quartz.core.QuartzScheduler
  * @see org.quartz.Trigger
