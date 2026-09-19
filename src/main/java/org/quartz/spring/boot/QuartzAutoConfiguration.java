@@ -2,6 +2,7 @@ package org.quartz.spring.boot;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoDatabase;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
@@ -10,7 +11,6 @@ import org.quartz.JobDetail;
 import org.quartz.Scheduler;
 import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
-import org.quartz.simpl.RAMJobStore;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.VirtualThreadPool;
 import org.springframework.beans.factory.ObjectProvider;
@@ -25,13 +25,13 @@ import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
 
 /**
- * Auto-configuration for this Quartz fork. JDBC / DataSource wiring from <a
- * href="https://github.com/spring-projects/spring-boot/tree/main/module/spring-boot-quartz">spring-boot-quartz</a>
- * is omitted; MongoDB and RAM stores are configured instead.
+ * Auto-configuration for this Quartz fork. The job store uses the application's {@link MongoClient}
+ * when present, otherwise Spring Data {@code MongoDatabaseFactory}. It does not take a separate
+ * Quartz URI.
  */
 @AutoConfiguration(
     afterName = {"org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration"})
-@ConditionalOnClass(Scheduler.class)
+@ConditionalOnClass({Scheduler.class, MongoClient.class})
 @ConditionalOnProperty(prefix = "quartz.scheduler", name = "enabled", matchIfMissing = true)
 @EnableConfigurationProperties(QuartzProperties.class)
 public class QuartzAutoConfiguration {
@@ -49,17 +49,22 @@ public class QuartzAutoConfiguration {
       Environment environment) {
 
     MongoClient mongoClient = mongoClients.getIfAvailable();
-    JobStoreType storeType = resolveStoreType(properties, mongoClient);
+    MongoDatabase mongoDatabase =
+        mongoClient == null ? resolveMongoDatabase(applicationContext) : null;
+    if (mongoClient == null && mongoDatabase == null) {
+      throw new IllegalStateException(
+          "Quartz requires a com.mongodb.client.MongoClient bean or a Spring Data MongoDatabaseFactory");
+    }
 
     QuartzSchedulerFactoryBean factoryBean = new QuartzSchedulerFactoryBean();
     factoryBean.setApplicationContext(applicationContext);
     factoryBean.setAutoStartup(properties.isAutoStartup());
-    factoryBean.setStartupDelay((int) properties.getStartupDelay().toSeconds());
+    factoryBean.setStartupDelay(properties.getStartupDelay());
     factoryBean.setWaitForJobsToCompleteOnShutdown(properties.isWaitForJobsToCompleteOnShutdown());
     factoryBean.setOverwriteExistingJobs(properties.isOverwriteExistingJobs());
     factoryBean.setMongoClient(mongoClient);
-    factoryBean.setQuartzProperties(
-        buildQuartzProperties(properties, storeType, mongoClient, environment));
+    factoryBean.setMongoDatabase(mongoDatabase);
+    factoryBean.setQuartzProperties(buildQuartzProperties(properties, environment, mongoDatabase));
     factoryBean.setJobDetails(jobDetails.orderedStream().toArray(JobDetail[]::new));
     factoryBean.setCalendars(calendars);
     factoryBean.setTriggers(triggers.orderedStream().toArray(Trigger[]::new));
@@ -67,20 +72,14 @@ public class QuartzAutoConfiguration {
     return factoryBean;
   }
 
-  static JobStoreType resolveStoreType(QuartzProperties properties, MongoClient mongoClient) {
-    JobStoreType configured = properties.getJobStoreType();
-    if (configured == null || configured == JobStoreType.AUTO) {
-      return mongoClient != null ? JobStoreType.MONGODB : JobStoreType.MEMORY;
-    }
-    return configured;
+  static Properties buildQuartzProperties(QuartzProperties properties, Environment environment) {
+    return buildQuartzProperties(properties, environment, null);
   }
 
   static Properties buildQuartzProperties(
-      QuartzProperties properties,
-      JobStoreType storeType,
-      MongoClient mongoClient,
-      Environment environment) {
+      QuartzProperties properties, Environment environment, MongoDatabase mongoDatabase) {
     Properties quartz = new Properties();
+    properties.getProperties().forEach(quartz::setProperty);
     quartz.setProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME, properties.getName());
     String threadPoolClass =
         properties.getThreadPool().isVirtual()
@@ -97,9 +96,15 @@ public class QuartzAutoConfiguration {
     }
     quartz.setProperty(
         "org.quartz.jobStore.misfireThreshold",
-        Long.toString(toMillis(properties.getMisfireThreshold(), Duration.ofSeconds(60))));
+        Long.toString(toMillis(properties.getMisfireThreshold(), 60_000)));
+    quartz.setProperty(
+        StdSchedulerFactory.PROP_SCHED_IDLE_WAIT_TIME,
+        Long.toString(toMillis(properties.getIdleWaitTime(), 30_000)));
+    quartz.setProperty(
+        StdSchedulerFactory.PROP_SCHED_BATCH_TIME_WINDOW,
+        Long.toString(toMillis(properties.getBatchTimeWindow(), 0)));
 
-    boolean clustered = storeType == JobStoreType.MONGODB && properties.isClustered();
+    boolean clustered = properties.isClustered();
     String instanceId = properties.getInstanceId();
     if (!StringUtils.hasText(instanceId)) {
       instanceId =
@@ -108,53 +113,32 @@ public class QuartzAutoConfiguration {
               : StdSchedulerFactory.DEFAULT_INSTANCE_ID;
     }
     quartz.setProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID, instanceId);
-
-    if (storeType == JobStoreType.MONGODB) {
-      quartz.setProperty(
-          StdSchedulerFactory.PROP_JOB_STORE_CLASS, SpringMongoJobStore.class.getName());
-      QuartzProperties.Mongodb mongo = properties.getMongodb();
-      if (StringUtils.hasText(mongo.getUri()) && mongoClient == null) {
-        quartz.setProperty("org.quartz.jobStore.mongoUri", mongo.getUri());
-      }
-      quartz.setProperty("org.quartz.jobStore.dbName", resolveDatabase(properties, environment));
-      quartz.setProperty("org.quartz.jobStore.collectionPrefix", resolveCollectionPrefix(mongo));
-      quartz.setProperty("org.quartz.jobStore.isClustered", Boolean.toString(clustered));
-      quartz.setProperty(
-          "org.quartz.jobStore.clusterCheckinInterval",
-          Long.toString(toMillis(properties.getClusterCheckinInterval(), Duration.ofSeconds(15))));
-    } else {
-      quartz.setProperty(StdSchedulerFactory.PROP_JOB_STORE_CLASS, RAMJobStore.class.getName());
-    }
-
-    properties.getProperties().forEach(quartz::setProperty);
+    quartz.setProperty(
+        "org.quartz.jobStore.dbName",
+        mongoDatabase != null ? mongoDatabase.getName() : resolveDatabase(environment));
+    quartz.setProperty("org.quartz.jobStore.collectionPrefix", properties.getCollectionPrefix());
+    quartz.setProperty("org.quartz.jobStore.isClustered", Boolean.toString(clustered));
+    quartz.setProperty(
+        "org.quartz.jobStore.clusterCheckinInterval",
+        Long.toString(toMillis(properties.getClusterCheckinInterval(), 15_000)));
     return quartz;
   }
 
-  static String resolveCollectionPrefix(QuartzProperties.Mongodb mongo) {
-    String prefix = mongo.getCollectionPrefix();
-    return StringUtils.hasText(prefix) ? prefix : "qrtz_";
-  }
-
   /**
-   * Quartz database if set, otherwise the application's Mongo database ({@code
-   * spring.mongodb.database} / {@code spring.data.mongodb.database} or the database in the
-   * connection URI).
+   * Same database as the Spring Boot Mongo client: {@code spring.mongodb.database} / {@code
+   * spring.data.mongodb.database}, or the database in the Mongo URI. Falls back to {@code test},
+   * which is Spring Boot's default.
    */
-  static String resolveDatabase(QuartzProperties properties, Environment environment) {
-    if (StringUtils.hasText(properties.getMongodb().getDatabase())) {
-      return properties.getMongodb().getDatabase();
-    }
+  static String resolveDatabase(Environment environment) {
     if (environment != null) {
       String database =
           firstProperty(environment, "spring.mongodb.database", "spring.data.mongodb.database");
       if (StringUtils.hasText(database)) {
         return database;
       }
-      String uri = firstProperty(environment, "spring.mongodb.uri", "spring.data.mongodb.uri");
-      if (!StringUtils.hasText(uri) && StringUtils.hasText(properties.getMongodb().getUri())) {
-        uri = properties.getMongodb().getUri();
-      }
-      String fromUri = databaseFromMongoUri(uri);
+      String fromUri =
+          databaseFromMongoUri(
+              firstProperty(environment, "spring.mongodb.uri", "spring.data.mongodb.uri"));
       if (StringUtils.hasText(fromUri)) {
         return fromUri;
       }
@@ -162,9 +146,27 @@ public class QuartzAutoConfiguration {
     return "test";
   }
 
-  static long toMillis(Duration duration, Duration fallback) {
-    Duration value = duration != null ? duration : fallback;
-    return value.toMillis();
+  static long toMillis(Duration duration, long fallbackMillis) {
+    return duration != null ? duration.toMillis() : fallbackMillis;
+  }
+
+  static MongoDatabase resolveMongoDatabase(ApplicationContext context) {
+    if (context == null) {
+      return null;
+    }
+    try {
+      Class<?> factoryType = Class.forName("org.springframework.data.mongodb.MongoDatabaseFactory");
+      String[] names = context.getBeanNamesForType(factoryType);
+      if (names.length == 0) {
+        return null;
+      }
+      Object factory = context.getBean(names[0]);
+      return (MongoDatabase) factoryType.getMethod("getMongoDatabase").invoke(factory);
+    } catch (ClassNotFoundException e) {
+      return null;
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Could not read MongoDatabase from MongoDatabaseFactory", e);
+    }
   }
 
   private static String firstProperty(Environment environment, String... keys) {

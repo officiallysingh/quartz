@@ -105,9 +105,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    * default settings of all the other properties.
    *
    * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   * @deprecated use {@link JobBuilder}
    */
-  @Deprecated
   public JobDetailImpl(String name, Class<? extends Job> jobClass) {
     this(name, null, jobClass);
   }
@@ -118,9 +116,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    *
    * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
    * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   * @deprecated use {@link JobBuilder}
    */
-  @Deprecated
   public JobDetailImpl(String name, String group, Class<? extends Job> jobClass) {
     setName(name);
     setGroup(group);
@@ -133,9 +129,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
    *
    * @param group if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
    * @exception IllegalArgumentException if name is null or empty, or the group is an empty string.
-   * @deprecated use {@link JobBuilder}
    */
-  @Deprecated
   public JobDetailImpl(
       String name,
       String group,

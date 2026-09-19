@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import static org.quartz.DailyTimeIntervalScheduleBuilder.MONDAY_THROUGH_FRIDAY;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,7 +125,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 200000),
             Instant.ofEpochMilli(baseFireTime + 200000),
             2,
-            2000);
+            Duration.ofMillis(2000));
     OperableTrigger trigger2 =
         new SimpleTriggerImpl(
             "trigger2",
@@ -134,7 +135,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 50000),
             Instant.ofEpochMilli(baseFireTime + 200000),
             2,
-            2000);
+            Duration.ofMillis(2000));
     OperableTrigger trigger3 =
         new SimpleTriggerImpl(
             "trigger1",
@@ -144,7 +145,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 100000),
             Instant.ofEpochMilli(baseFireTime + 200000),
             2,
-            2000);
+            Duration.ofMillis(2000));
 
     trigger1.computeFirstFireTime(null);
     trigger2.computeFirstFireTime(null);
@@ -191,7 +192,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime),
             Instant.ofEpochMilli(baseFireTime + 5),
             2,
-            2000);
+            Duration.ofMillis(2000));
     OperableTrigger trigger1 =
         new SimpleTriggerImpl(
             "trigger1",
@@ -201,7 +202,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 200000),
             Instant.ofEpochMilli(baseFireTime + 200005),
             2,
-            2000);
+            Duration.ofMillis(2000));
     OperableTrigger trigger2 =
         new SimpleTriggerImpl(
             "trigger2",
@@ -211,7 +212,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 210000),
             Instant.ofEpochMilli(baseFireTime + 210005),
             2,
-            2000);
+            Duration.ofMillis(2000));
     OperableTrigger trigger3 =
         new SimpleTriggerImpl(
             "trigger3",
@@ -221,7 +222,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 220000),
             Instant.ofEpochMilli(baseFireTime + 220005),
             2,
-            2000);
+            Duration.ofMillis(2000));
     OperableTrigger trigger4 =
         new SimpleTriggerImpl(
             "trigger4",
@@ -231,7 +232,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 230000),
             Instant.ofEpochMilli(baseFireTime + 230005),
             2,
-            2000);
+            Duration.ofMillis(2000));
 
     OperableTrigger trigger10 =
         new SimpleTriggerImpl(
@@ -242,7 +243,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 500000),
             Instant.ofEpochMilli(baseFireTime + 700000),
             2,
-            2000);
+            Duration.ofMillis(2000));
 
     early.computeFirstFireTime(null);
     early.setMisfireInstruction(Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY);
@@ -328,7 +329,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(System.currentTimeMillis() + 100000),
             Instant.ofEpochMilli(System.currentTimeMillis() + 200000),
             2,
-            2000);
+            Duration.ofMillis(2000));
     trigger.computeFirstFireTime(null);
     assertEquals(TriggerState.NONE, this.fJobStore.getTriggerState(trigger.getKey()));
     this.fJobStore.storeTrigger(trigger, false);
@@ -880,7 +881,7 @@ public abstract class AbstractJobStoreTest {
             Instant.ofEpochMilli(baseFireTime + 200000),
             Instant.ofEpochMilli(baseFireTime + 200000),
             2,
-            2000);
+            Duration.ofMillis(2000));
 
     trigger1.computeFirstFireTime(null);
     this.fJobStore.storeTrigger(trigger1, false);
@@ -928,7 +929,7 @@ public abstract class AbstractJobStoreTest {
             start,
             null,
             SimpleTrigger.REPEAT_INDEFINITELY,
-            400_000L);
+            Duration.ofMillis(400_000L));
     this.fJobStore.storeTrigger(simple, false);
 
     OperableTrigger loadedSimple = this.fJobStore.retrieveTrigger(simple.getKey());
@@ -961,14 +962,14 @@ public abstract class AbstractJobStoreTest {
             start,
             null,
             3,
-            60_000L);
+            Duration.ofMinutes(1));
     assertDoesNotThrow(() -> this.fJobStore.storeTrigger(simpleAgain, true));
 
     OperableTrigger reloadedSimple = this.fJobStore.retrieveTrigger(simple.getKey());
     assertNotNull(reloadedSimple);
     assertTrue(reloadedSimple instanceof SimpleTrigger);
     assertEquals(3, ((SimpleTrigger) reloadedSimple).getRepeatCount());
-    assertEquals(60_000L, ((SimpleTrigger) reloadedSimple).getRepeatInterval());
+    assertEquals(Duration.ofMinutes(1), ((SimpleTrigger) reloadedSimple).getRepeatInterval());
   }
 
   @Test

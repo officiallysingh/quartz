@@ -1,6 +1,8 @@
 package org.quartz.spring.boot;
 
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoDatabase;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
@@ -36,10 +38,11 @@ public class QuartzSchedulerFactoryBean
   private Trigger[] triggers = new Trigger[0];
   private Map<String, Calendar> calendars = Collections.emptyMap();
   private boolean autoStartup = true;
-  private int startupDelay;
+  private Duration startupDelay = Duration.ZERO;
   private boolean waitForJobsToCompleteOnShutdown = true;
   private boolean overwriteExistingJobs;
   private MongoClient mongoClient;
+  private MongoDatabase mongoDatabase;
   private ApplicationContext applicationContext;
   private Scheduler scheduler;
   private final AtomicBoolean running = new AtomicBoolean(false);
@@ -65,8 +68,8 @@ public class QuartzSchedulerFactoryBean
     this.autoStartup = autoStartup;
   }
 
-  public void setStartupDelay(int startupDelay) {
-    this.startupDelay = startupDelay;
+  public void setStartupDelay(Duration startupDelay) {
+    this.startupDelay = startupDelay != null ? startupDelay : Duration.ZERO;
   }
 
   public void setWaitForJobsToCompleteOnShutdown(boolean waitForJobsToCompleteOnShutdown) {
@@ -81,6 +84,10 @@ public class QuartzSchedulerFactoryBean
     this.mongoClient = mongoClient;
   }
 
+  public void setMongoDatabase(MongoDatabase mongoDatabase) {
+    this.mongoDatabase = mongoDatabase;
+  }
+
   @Override
   public void setApplicationContext(@NonNull ApplicationContext applicationContext) {
     this.applicationContext = applicationContext;
@@ -88,8 +95,9 @@ public class QuartzSchedulerFactoryBean
 
   @Override
   public void afterPropertiesSet() throws Exception {
-    QuartzMongoClientHolder.set(mongoClient);
     StdSchedulerFactory factory = new StdSchedulerFactory();
+    factory.setMongoClient(mongoClient);
+    factory.setMongoDatabase(mongoDatabase);
     factory.initialize(quartzProperties);
     this.scheduler = factory.getScheduler();
     if (applicationContext != null) {
@@ -144,12 +152,12 @@ public class QuartzSchedulerFactoryBean
       return;
     }
     try {
-      if (startupDelay > 0) {
+      if (!startupDelay.isZero() && !startupDelay.isNegative()) {
         scheduler.startDelayed(startupDelay);
       } else {
         scheduler.start();
       }
-      running.set(true);
+      running.set(scheduler.isStarted());
     } catch (SchedulerException ex) {
       throw new IllegalStateException("Could not start Quartz scheduler", ex);
     }
@@ -162,7 +170,11 @@ public class QuartzSchedulerFactoryBean
 
   @Override
   public boolean isRunning() {
-    return running.get();
+    try {
+      return scheduler != null && !destroyed.get() && (running.get() || scheduler.isStarted());
+    } catch (SchedulerException ex) {
+      return running.get();
+    }
   }
 
   @Override
@@ -187,8 +199,6 @@ public class QuartzSchedulerFactoryBean
       }
     } catch (SchedulerException ex) {
       throw new IllegalStateException("Could not shut down Quartz scheduler", ex);
-    } finally {
-      QuartzMongoClientHolder.set(null);
     }
   }
 }

@@ -60,7 +60,7 @@ public class SimpleTriggerTest extends SerializationTestSupport {
             START_TIME.toInstant(),
             END_TIME.toInstant(),
             5,
-            1000);
+            java.time.Duration.ofMillis(1000));
     t.setCalendarName("MyCalendar");
     t.setDescription("SimpleTriggerDesc");
     t.setJobDataMap(jobDataMap);
@@ -127,7 +127,7 @@ public class SimpleTriggerTest extends SerializationTestSupport {
     SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
     simpleTrigger.setStartTime(Instant.ofEpochMilli(0));
-    simpleTrigger.setRepeatInterval(10);
+    simpleTrigger.setRepeatInterval(java.time.Duration.ofMillis(10));
     simpleTrigger.setRepeatCount(4);
 
     Instant fireTimeAfter = simpleTrigger.getFireTimeAfter(Instant.ofEpochMilli(34));

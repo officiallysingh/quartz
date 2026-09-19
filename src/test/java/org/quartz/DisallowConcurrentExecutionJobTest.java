@@ -121,6 +121,7 @@ class DisallowConcurrentExecutionJobTest {
     Properties props = new Properties();
     props.setProperty("org.quartz.scheduler.idleWaitTime", "1500");
     props.setProperty("org.quartz.threadPool.threadCount", "2");
+    MongoSchedulerSupport.applyJobStore(props);
     Scheduler scheduler = new StdSchedulerFactory(props).getScheduler();
     scheduler.getContext().put(BARRIER, barrier);
     scheduler.getContext().put(DATE_STAMPS, jobExecDates);
@@ -168,6 +169,7 @@ class DisallowConcurrentExecutionJobTest {
     props.setProperty("org.quartz.scheduler.idleWaitTime", "1500");
     props.setProperty("org.quartz.scheduler.batchTriggerAcquisitionMaxCount", "2");
     props.setProperty("org.quartz.threadPool.threadCount", "2");
+    MongoSchedulerSupport.applyJobStore(props);
     Scheduler scheduler = new StdSchedulerFactory(props).getScheduler();
     scheduler.getContext().put(BARRIER, barrier);
     scheduler.getContext().put(DATE_STAMPS, jobExecDates);

@@ -18,6 +18,8 @@
 
 package org.quartz.impl;
 
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoDatabase;
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -29,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.security.AccessControlException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Locale;
@@ -44,7 +47,7 @@ import org.quartz.core.JobRunShellFactory;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.core.QuartzSchedulerResources;
 import org.quartz.impl.matchers.EverythingMatcher;
-import org.quartz.simpl.RAMJobStore;
+import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.VirtualThreadPool;
 import org.quartz.spi.ClassLoadHelper;
@@ -74,11 +77,11 @@ import org.slf4j.Logger;
  * various settings available within the file. Full configuration documentation can be found at
  * http://www.quartz-scheduler.org/docs/index.html
  *
- * <p>Instances of the specified <code>{@link org.quartz.spi.JobStore}</code>, <code>
- * {@link org.quartz.spi.ThreadPool}</code>, and other SPI classes will be created by name, and then
- * any additional properties specified for them in the config file will be set on the instance by
+ * <p>The job store is always {@link org.quartz.impl.mongodb.MongoJobStore}. Specified <code>
+ * {@link org.quartz.spi.ThreadPool}</code> and other SPI classes are created by name, and then any
+ * additional properties specified for them in the config file will be set on the instance by
  * calling an equivalent 'set' method. For example if the properties file contains the property
- * 'org.quartz.jobStore.myProp = 10' then after the JobStore class has been instantiated, the method
+ * 'org.quartz.jobStore.myProp = 10' then after the JobStore has been instantiated, the method
  * 'setMyProp()' will be called on it. Type conversion to primitive Java types (int, long, float,
  * double, boolean, and String) are performed before calling the property's setter method.
  *
@@ -123,9 +126,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   public static final String PROP_SCHED_IDLE_WAIT_TIME = "org.quartz.scheduler.idleWaitTime";
 
-  public static final String PROP_SCHED_DB_FAILURE_RETRY_INTERVAL =
-      "org.quartz.scheduler.dbFailureRetryInterval";
-
   public static final String PROP_SCHED_MAKE_SCHEDULER_THREAD_DAEMON =
       "org.quartz.scheduler.makeSchedulerThreadDaemon";
 
@@ -153,20 +153,6 @@ public class StdSchedulerFactory implements SchedulerFactory {
   public static final String PROP_THREAD_POOL_CLASS = "org.quartz.threadPool.class";
 
   public static final String PROP_JOB_STORE_PREFIX = "org.quartz.jobStore";
-
-  public static final String PROP_JOB_STORE_LOCK_HANDLER_PREFIX =
-      PROP_JOB_STORE_PREFIX + ".lockHandler";
-
-  public static final String PROP_JOB_STORE_LOCK_HANDLER_CLASS =
-      PROP_JOB_STORE_LOCK_HANDLER_PREFIX + ".class";
-
-  public static final String PROP_TABLE_PREFIX = "tablePrefix";
-
-  public static final String PROP_SCHED_NAME = "schedName";
-
-  public static final String PROP_JOB_STORE_CLASS = "org.quartz.jobStore.class";
-
-  public static final String PROP_JOB_STORE_USE_PROP = "org.quartz.jobStore.useProperties";
 
   public static final String PROP_PLUGIN_PREFIX = "org.quartz.plugin";
 
@@ -201,6 +187,10 @@ public class StdSchedulerFactory implements SchedulerFactory {
   private String propSrc = null;
 
   private PropertiesParser cfg;
+
+  private MongoClient mongoClient;
+
+  private MongoDatabase mongoDatabase;
 
   //  private Scheduler scheduler;
 
@@ -245,6 +235,22 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   public Logger getLog() {
     return log;
+  }
+
+  /**
+   * Inject the application's {@link MongoClient}. When set, {@link MongoJobStore} uses it instead
+   * of opening a client from {@code mongoUri}.
+   */
+  public void setMongoClient(MongoClient mongoClient) {
+    this.mongoClient = mongoClient;
+  }
+
+  /**
+   * Use the application's Mongo database (from Spring Data {@code MongoDatabaseFactory}) when no
+   * {@link MongoClient} bean is exposed.
+   */
+  public void setMongoDatabase(MongoDatabase mongoDatabase) {
+    this.mongoDatabase = mongoDatabase;
   }
 
   /**
@@ -502,8 +508,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
     String instanceIdGeneratorClass = null;
     Properties tProps;
     boolean autoId = false;
-    long idleWaitTime = -1;
-    long dbFailureRetry = 15000L; // 15 secs
+    Duration idleWaitTime = null;
     String classLoadHelperClass;
     String jobFactoryClass;
     ThreadExecutor threadExecutor;
@@ -536,16 +541,13 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
     jobFactoryClass = cfg.getStringProperty(PROP_SCHED_JOB_FACTORY_CLASS, null);
 
-    idleWaitTime = cfg.getLongProperty(PROP_SCHED_IDLE_WAIT_TIME, idleWaitTime);
-    if (idleWaitTime > -1 && idleWaitTime < 1000) {
+    long idleWaitMillis = cfg.getLongProperty(PROP_SCHED_IDLE_WAIT_TIME, -1);
+    if (idleWaitMillis > -1 && idleWaitMillis < 1000) {
       throw new SchedulerException(
           "org.quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
     }
-
-    dbFailureRetry = cfg.getLongProperty(PROP_SCHED_DB_FAILURE_RETRY_INTERVAL, dbFailureRetry);
-    if (dbFailureRetry < 0) {
-      throw new SchedulerException(
-          PROP_SCHED_DB_FAILURE_RETRY_INTERVAL + " of less than 0 ms is not legal.");
+    if (idleWaitMillis > -1) {
+      idleWaitTime = Duration.ofMillis(idleWaitMillis);
     }
 
     boolean makeSchedulerThreadDaemon =
@@ -555,7 +557,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
         cfg.getBooleanProperty(
             PROP_SCHED_SCHEDULER_THREADS_INHERIT_CONTEXT_CLASS_LOADER_OF_INITIALIZING_THREAD);
 
-    long batchTimeWindow = cfg.getLongProperty(PROP_SCHED_BATCH_TIME_WINDOW, 0L);
+    Duration batchTimeWindow =
+        Duration.ofMillis(cfg.getLongProperty(PROP_SCHED_BATCH_TIME_WINDOW, 0L));
     int maxBatchSize = cfg.getIntProperty(PROP_SCHED_MAX_BATCH_SIZE, 1);
 
     boolean interruptJobsOnShutdown =
@@ -662,33 +665,27 @@ public class StdSchedulerFactory implements SchedulerFactory {
       throw initException;
     }
 
-    // Get JobStore Properties
+    // Job store is always MongoDB.
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    String jsClass = cfg.getStringProperty(PROP_JOB_STORE_CLASS, RAMJobStore.class.getName());
-
-    if (jsClass == null) {
-      initException = new SchedulerException("JobStore class not specified. ");
-      throw initException;
+    MongoJobStore mongoJobStore = new MongoJobStore();
+    if (mongoClient != null) {
+      mongoJobStore.setMongoClient(mongoClient);
     }
-
-    try {
-      js = (JobStore) loadHelper.loadClass(jsClass).getDeclaredConstructor().newInstance();
-    } catch (Exception e) {
-      initException =
-          new SchedulerException("JobStore class '" + jsClass + "' could not be instantiated.", e);
-      throw initException;
+    if (mongoDatabase != null) {
+      mongoJobStore.setMongoDatabase(mongoDatabase);
     }
+    js = mongoJobStore;
 
     SchedulerDetailsSetter.setDetails(js, schedName, schedInstId);
 
     tProps = cfg.getPropertyGroup(PROP_JOB_STORE_PREFIX, true);
+    tProps.remove("class");
     try {
       setBeanProps(js, tProps);
     } catch (Exception e) {
       initException =
-          new SchedulerException(
-              "JobStore class '" + jsClass + "' props could not be configured.", e);
+          new SchedulerException("MongoJobStore properties could not be configured.", e);
       throw initException;
     }
 
@@ -910,7 +907,7 @@ public class StdSchedulerFactory implements SchedulerFactory {
         rsrcs.addSchedulerPlugin(plugin);
       }
 
-      qs = new QuartzScheduler(rsrcs, idleWaitTime, dbFailureRetry);
+      qs = new QuartzScheduler(rsrcs, idleWaitTime);
       qsInited = true;
 
       // Create Scheduler ref...
@@ -1038,6 +1035,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
           setMeth.invoke(obj, new Object[] {refProps.getBooleanProperty(refName)});
         } else if (params[0].equals(String.class)) {
           setMeth.invoke(obj, new Object[] {refProps.getStringProperty(refName)});
+        } else if (params[0].equals(Duration.class)) {
+          setMeth.invoke(obj, new Object[] {parseDuration(refProps.getStringProperty(refName))});
         } else {
           throw new NoSuchMethodException("No primitive-type setter for property '" + name + "'");
         }
@@ -1046,6 +1045,21 @@ public class StdSchedulerFactory implements SchedulerFactory {
             "Could not parse property '" + name + "' into correct data type: " + nfe);
       }
     }
+  }
+
+  /**
+   * Unitless numbers are milliseconds (quartz.properties). Values starting with {@code P} are
+   * ISO-8601 durations.
+   */
+  private static Duration parseDuration(String value) {
+    if (value == null || value.isBlank()) {
+      throw new NumberFormatException("empty duration");
+    }
+    String trimmed = value.trim();
+    if (trimmed.length() > 1 && (trimmed.charAt(0) == 'P' || trimmed.charAt(0) == 'p')) {
+      return Duration.parse(trimmed);
+    }
+    return Duration.ofMillis(Long.parseLong(trimmed));
   }
 
   private java.lang.reflect.Method getSetMethod(String name, PropertyDescriptor[] props) {

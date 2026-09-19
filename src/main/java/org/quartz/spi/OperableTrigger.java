@@ -1,5 +1,6 @@
 package org.quartz.spi;
 
+import java.time.Duration;
 import java.time.Instant;
 import org.quartz.Calendar;
 import org.quartz.JobExecutionContext;
@@ -75,7 +76,7 @@ public interface OperableTrigger extends MutableTrigger {
    *
    * @param cal
    */
-  void updateWithNewCalendar(Calendar cal, long misfireThreshold);
+  void updateWithNewCalendar(Calendar cal, Duration misfireThreshold);
 
   /**
    * Validates whether the properties of the <code>JobDetail</code> are valid for submission into a

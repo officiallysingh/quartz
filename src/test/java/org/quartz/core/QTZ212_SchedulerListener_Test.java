@@ -42,7 +42,10 @@ class QTZ212_SchedulerListener_Test {
 
   @Test
   void stdSchedulerCallsStartingBeforeStartedTest() throws SchedulerException {
-    SchedulerFactory sf = new StdSchedulerFactory();
+    SchedulerFactory sf =
+        new StdSchedulerFactory(
+            org.quartz.MongoSchedulerSupport.schedulerProperties(
+                "QTZ212_SchedulerListener_Test", 4));
     Scheduler sched = sf.getScheduler();
     sched.getListenerManager().addSchedulerListener(new TestSchedulerListener());
     sched.start();
@@ -58,7 +61,10 @@ class QTZ212_SchedulerListener_Test {
       throws SchedulerException {
 
     methodsCalledInSchedulerListener = new ArrayList<String>();
-    SchedulerFactory sf = new StdSchedulerFactory();
+    SchedulerFactory sf =
+        new StdSchedulerFactory(
+            org.quartz.MongoSchedulerSupport.schedulerProperties(
+                "QTZ212_SchedulerListener_Test", 4));
     Scheduler sched = sf.getScheduler();
     List<SchedulerListener> listeners = new ArrayList<SchedulerListener>();
     listeners.add(new TestSchedulerListener());

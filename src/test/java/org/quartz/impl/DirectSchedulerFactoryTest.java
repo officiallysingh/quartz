@@ -22,12 +22,14 @@ import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 import org.quartz.Scheduler;
+import org.quartz.SchedulerConfigException;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.core.QuartzSchedulerResources;
-import org.quartz.simpl.RAMJobStore;
+import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.SchedulerPlugin;
+import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.ThreadPool;
 
 public class DirectSchedulerFactoryTest {
@@ -61,10 +63,9 @@ public class DirectSchedulerFactoryTest {
             "MyScheduler",
             "Instance1",
             threadPool,
-            new RAMJobStore(),
+            uninitializedMongoStore(),
             Collections.singletonMap("TestPlugin", testPlugin),
-            0,
-            0);
+            java.time.Duration.ZERO);
 
     Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler("MyScheduler");
     scheduler.start();
@@ -74,7 +75,8 @@ public class DirectSchedulerFactoryTest {
   }
 
   void testThreadName() throws Throwable {
-    DirectSchedulerFactory.getInstance().createVolatileScheduler(4);
+    SimpleThreadPool threadPool = new SimpleThreadPool(4, Thread.NORM_PRIORITY);
+    DirectSchedulerFactory.getInstance().createScheduler(threadPool, uninitializedMongoStore());
     Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler();
     QuartzScheduler qs = getField(scheduler, "sched");
     QuartzSchedulerResources qsr = getField(qs, "resources");
@@ -84,6 +86,16 @@ public class DirectSchedulerFactoryTest {
     String workerThreadName = workerThread.toString();
     assertFalse(workerThreadName.contains("null"));
     assertTrue(workerThreadName.contains(scheduler.getSchedulerName()));
+  }
+
+  private static MongoJobStore uninitializedMongoStore() {
+    return new MongoJobStore() {
+      @Override
+      public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler)
+          throws SchedulerConfigException {
+        // Plugin / thread-name tests do not persist jobs.
+      }
+    };
   }
 
   <T> T getField(Object obj, String fieldName) throws Exception {

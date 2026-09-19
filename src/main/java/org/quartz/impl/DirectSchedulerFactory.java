@@ -18,6 +18,7 @@
 
 package org.quartz.impl;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -29,8 +30,6 @@ import org.quartz.core.JobRunShellFactory;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.core.QuartzSchedulerResources;
 import org.quartz.simpl.CascadingClassLoadHelper;
-import org.quartz.simpl.RAMJobStore;
-import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
@@ -41,36 +40,16 @@ import org.slf4j.Logger;
 /**
  * A singleton implementation of <code>{@link org.quartz.SchedulerFactory}</code>.
  *
- * <p>Here are some examples of using this class:
- *
- * <p>To create a scheduler that does not write anything to the database (is not persistent), you
- * can call <code>createVolatileScheduler</code>:
- *
- * <pre>
- *  DirectSchedulerFactory.getInstance().createVolatileScheduler(10); // 10 threads * // don't forget to start the scheduler: DirectSchedulerFactory.getInstance().getScheduler().start();
- * </pre>
- *
- * <p>Several create methods are provided for convenience. All create methods eventually end up
- * calling the create method with thread pool, job store, and optional plugins.
- *
- * <p>Here is an example of using this method:
+ * <p>Create methods take a {@link JobStore}. Use {@link org.quartz.impl.mongodb.MongoJobStore}:
  *
  * <pre>
  * SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, Thread.NORM_PRIORITY);
  * threadPool.initialize();
- * JobStore jobStore = new RAMJobStore();
+ * org.quartz.impl.mongodb.MongoJobStore jobStore = new org.quartz.impl.mongodb.MongoJobStore();
+ * jobStore.setMongoUri("mongodb://localhost:27017");
+ * jobStore.setDbName("quartz");
  * DirectSchedulerFactory.getInstance().createScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore);
  * DirectSchedulerFactory.getInstance().getScheduler("My Quartz Scheduler").start();
- * </pre>
- *
- * <p>You can also use {@link org.quartz.impl.mongodb.MongoJobStore} instead of {@link RAMJobStore}:
- *
- * <pre>
- *  org.quartz.impl.mongodb.MongoJobStore mongoJobStore = new org.quartz.impl.mongodb.MongoJobStore();
- *  mongoJobStore.setMongoUri("mongodb://localhost:27017");
- *  mongoJobStore.setDbName("quartz");
- *  mongoJobStore.setInstanceId("My Instance");
- *  mongoJobStore.setClustered(true);
  * </pre>
  *
  * @author Mohammad Rezaei
@@ -96,7 +75,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
 
   private static final int DEFAULT_BATCH_MAX_SIZE = 1;
 
-  private static final long DEFAULT_BATCH_TIME_WINDOW = 0L;
+  private static final Duration DEFAULT_BATCH_TIME_WINDOW = Duration.ZERO;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -138,19 +117,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
   }
 
   /**
-   * Creates an in memory job store (<code>{@link RAMJobStore}</code>) The thread priority is set to
-   * Thread.NORM_PRIORITY
-   *
-   * @param maxThreads The number of threads in the thread pool
-   * @throws SchedulerException if initialization failed.
-   */
-  public void createVolatileScheduler(int maxThreads) throws SchedulerException {
-    SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, Thread.NORM_PRIORITY);
-    JobStore jobStore = new RAMJobStore();
-    this.createScheduler(threadPool, jobStore);
-  }
-
-  /**
    * Creates a scheduler using the specified thread pool and job store. This scheduler can be
    * retrieved via {@link DirectSchedulerFactory#getScheduler()}
    *
@@ -176,7 +142,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
   public void createScheduler(
       String schedulerName, String schedulerInstanceId, ThreadPool threadPool, JobStore jobStore)
       throws SchedulerException {
-    createScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, -1, -1);
+    createScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, null);
   }
 
   /** Creates a scheduler using the specified thread pool, job store, and plugins. */
@@ -186,8 +152,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
       ThreadPool threadPool,
       JobStore jobStore,
       Map<String, SchedulerPlugin> schedulerPluginMap,
-      long idleWaitTime,
-      long dbFailureRetryInterval)
+      Duration idleWaitTime)
       throws SchedulerException {
     createScheduler(
         schedulerName,
@@ -197,7 +162,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
         jobStore,
         schedulerPluginMap,
         idleWaitTime,
-        dbFailureRetryInterval,
         DEFAULT_BATCH_MAX_SIZE,
         DEFAULT_BATCH_TIME_WINDOW,
         false);
@@ -211,10 +175,9 @@ public class DirectSchedulerFactory implements SchedulerFactory {
       ThreadExecutor threadExecutor,
       JobStore jobStore,
       Map<String, SchedulerPlugin> schedulerPluginMap,
-      long idleWaitTime,
-      long dbFailureRetryInterval,
+      Duration idleWaitTime,
       int maxBatchSize,
-      long batchTimeWindow,
+      Duration batchTimeWindow,
       boolean makeSchedThreadDaemon)
       throws SchedulerException {
 
@@ -242,7 +205,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
       }
     }
 
-    QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime, dbFailureRetryInterval);
+    QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime);
 
     ClassLoadHelper cch = new CascadingClassLoadHelper();
     cch.initialize();

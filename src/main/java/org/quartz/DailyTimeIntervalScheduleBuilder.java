@@ -19,9 +19,9 @@ package org.quartz;
 
 import java.time.DayOfWeek;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Calendar;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import org.quartz.DateBuilder.IntervalUnit;
@@ -369,11 +369,12 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
       throw new IllegalArgumentException(
           "You must set the startDailyAt() before calling this endingDailyAfterCount()!");
 
-    Date today = new Date();
-    Date startTimeOfDayDate = startTimeOfDay.getTimeOfDayForDate(today);
-    Date maxEndTimeOfDayDate =
+    Instant today = Instant.now();
+    Instant startTimeOfDayDate = startTimeOfDay.getTimeOfDayForDate(today);
+    Instant maxEndTimeOfDayDate =
         TimeOfDay.hourMinuteAndSecondOfDay(23, 59, 59).getTimeOfDayForDate(today);
-    long remainingMillisInDay = maxEndTimeOfDayDate.getTime() - startTimeOfDayDate.getTime();
+    long remainingMillisInDay =
+        maxEndTimeOfDayDate.toEpochMilli() - startTimeOfDayDate.toEpochMilli();
     long intervalInMillis;
     if (intervalUnit == IntervalUnit.SECOND) intervalInMillis = interval * 1000L;
     else if (intervalUnit == IntervalUnit.MINUTE) intervalInMillis = interval * 1000L * 60;
@@ -392,14 +393,14 @@ public class DailyTimeIntervalScheduleBuilder extends ScheduleBuilder<DailyTimeI
           "The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
 
     long incrementInMillis = (count - 1) * intervalInMillis;
-    Date endTimeOfDayDate = new Date(startTimeOfDayDate.getTime() + incrementInMillis);
+    Instant endTimeOfDayDate = startTimeOfDayDate.plusMillis(incrementInMillis);
 
-    if (endTimeOfDayDate.getTime() > maxEndTimeOfDayDate.getTime())
+    if (endTimeOfDayDate.toEpochMilli() > maxEndTimeOfDayDate.toEpochMilli())
       throw new IllegalArgumentException(
           "The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
 
     Calendar cal = Calendar.getInstance();
-    cal.setTime(endTimeOfDayDate);
+    cal.setTimeInMillis(endTimeOfDayDate.toEpochMilli());
     int hour = cal.get(Calendar.HOUR_OF_DAY);
     int minute = cal.get(Calendar.MINUTE);
     int second = cal.get(Calendar.SECOND);

@@ -54,6 +54,7 @@ class PriorityTest {
     Properties config = new Properties();
     config.setProperty("org.quartz.threadPool.threadCount", "1");
     config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
+    MongoSchedulerSupport.applyJobStore(config);
 
     Scheduler sched = new StdSchedulerFactory(config).getScheduler();
 
@@ -85,6 +86,7 @@ class PriorityTest {
     Properties config = new Properties();
     config.setProperty("org.quartz.threadPool.threadCount", "1");
     config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
+    MongoSchedulerSupport.applyJobStore(config);
 
     Scheduler sched = new StdSchedulerFactory(config).getScheduler();
 

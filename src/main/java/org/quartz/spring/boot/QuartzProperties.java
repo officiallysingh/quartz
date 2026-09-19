@@ -20,12 +20,6 @@ public class QuartzProperties {
   /** Whether Quartz auto-configuration is enabled. */
   private boolean enabled = true;
 
-  /**
-   * Job store. {@link JobStoreType#AUTO} picks MongoDB when a MongoClient bean is present,
-   * otherwise RAM.
-   */
-  private JobStoreType jobStoreType = JobStoreType.AUTO;
-
   /** Scheduler instance name ({@code org.quartz.scheduler.instanceName}). */
   private String name = "quartzScheduler";
 
@@ -52,8 +46,24 @@ public class QuartzProperties {
   private Duration misfireThreshold = Duration.ofSeconds(60);
 
   /**
-   * Multi-JVM clustering ({@code org.quartz.jobStore.isClustered}). Requires MongoDB, a replica
-   * set, and NTP. Ignored for RAM.
+   * How long the scheduler thread sleeps when no triggers are ready ({@code
+   * org.quartz.scheduler.idleWaitTime}). Must be at least 1s if set. Unitless numbers are
+   * milliseconds.
+   */
+  @DurationUnit(ChronoUnit.MILLIS)
+  private Duration idleWaitTime = Duration.ofSeconds(30);
+
+  /**
+   * Fire-ahead window when acquiring a batch of triggers ({@code
+   * org.quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow}). Unitless numbers are
+   * milliseconds.
+   */
+  @DurationUnit(ChronoUnit.MILLIS)
+  private Duration batchTimeWindow = Duration.ZERO;
+
+  /**
+   * Multi-JVM clustering ({@code org.quartz.jobStore.isClustered}). Requires a Mongo replica set
+   * and NTP.
    */
   private boolean clustered = false;
 
@@ -64,17 +74,22 @@ public class QuartzProperties {
   @DurationUnit(ChronoUnit.MILLIS)
   private Duration clusterCheckinInterval = Duration.ofSeconds(15);
 
-  /** Extra Quartz keys ({@code org.quartz.*}). Overlayed last. */
+  /** Prefix for Quartz collections ({@code qrtz_jobs}, {@code qrtz_triggers}, …). */
+  @Setter(AccessLevel.NONE)
+  private String collectionPrefix = "qrtz_";
+
+  public void setCollectionPrefix(String collectionPrefix) {
+    this.collectionPrefix =
+        (collectionPrefix == null || collectionPrefix.isBlank()) ? "qrtz_" : collectionPrefix;
+  }
+
+  /** Extra Quartz keys ({@code org.quartz.*}). Applied first; typed Duration fields win. */
   @Setter(AccessLevel.NONE)
   private final Map<String, String> properties = new LinkedHashMap<>();
 
   @Setter(AccessLevel.NONE)
   @NestedConfigurationProperty
   private final ThreadPool threadPool = new ThreadPool();
-
-  @Setter(AccessLevel.NONE)
-  @NestedConfigurationProperty
-  private final Mongodb mongodb = new Mongodb();
 
   @Getter
   @Setter
@@ -90,29 +105,5 @@ public class QuartzProperties {
      * org.quartz.simpl.SimpleThreadPool}. {@code threadCount} still caps concurrency.
      */
     private boolean virtual = false;
-  }
-
-  @Getter
-  @Setter
-  public static class Mongodb {
-
-    /** Used only when no {@code MongoClient} bean is injected. */
-    private String uri;
-
-    /**
-     * Mongo database for Quartz collections. When unset, uses the application's {@code
-     * spring.mongodb.database} / {@code spring.data.mongodb.database} (or the database in the Mongo
-     * URI).
-     */
-    private String database;
-
-    /** Prefix for Quartz collections ({@code qrtz_jobs}, {@code qrtz_triggers}, …). */
-    @Setter(AccessLevel.NONE)
-    private String collectionPrefix = "qrtz_";
-
-    public void setCollectionPrefix(String collectionPrefix) {
-      this.collectionPrefix =
-          (collectionPrefix == null || collectionPrefix.isBlank()) ? "qrtz_" : collectionPrefix;
-    }
   }
 }

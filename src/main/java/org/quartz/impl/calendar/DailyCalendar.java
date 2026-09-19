@@ -396,8 +396,8 @@ public class DailyCalendar extends BaseCalendar {
       return false;
     }
 
-    long startOfDayInMillis = getStartOfDayJavaCalendar(timeInMillis).getTime().getTime();
-    long endOfDayInMillis = getEndOfDayJavaCalendar(timeInMillis).getTime().getTime();
+    long startOfDayInMillis = getStartOfDayJavaCalendar(timeInMillis).getTimeInMillis();
+    long endOfDayInMillis = getEndOfDayJavaCalendar(timeInMillis).getTimeInMillis();
     long timeRangeStartingTimeInMillis = getTimeRangeStartingTimeInMillis(timeInMillis);
     long timeRangeEndingTimeInMillis = getTimeRangeEndingTimeInMillis(timeInMillis);
     if (!invertTimeRange) {
@@ -448,7 +448,7 @@ public class DailyCalendar extends BaseCalendar {
           nextIncludedTime = getTimeRangeStartingTimeInMillis(nextIncludedTime);
         } else if (nextIncludedTime > getTimeRangeEndingTimeInMillis(nextIncludedTime)) {
           // (move to start of next day)
-          nextIncludedTime = getEndOfDayJavaCalendar(nextIncludedTime).getTime().getTime();
+          nextIncludedTime = getEndOfDayJavaCalendar(nextIncludedTime).getTimeInMillis();
           nextIncludedTime += 1L;
         } else if ((getBaseCalendar() != null)
             && (!getBaseCalendar().isTimeIncluded(nextIncludedTime))) {
@@ -476,7 +476,7 @@ public class DailyCalendar extends BaseCalendar {
     rangeStartingTime.set(Calendar.MINUTE, rangeStartingMinute);
     rangeStartingTime.set(Calendar.SECOND, rangeStartingSecond);
     rangeStartingTime.set(Calendar.MILLISECOND, rangeStartingMillis);
-    return rangeStartingTime.getTime().getTime();
+    return rangeStartingTime.getTimeInMillis();
   }
 
   /**
@@ -493,7 +493,7 @@ public class DailyCalendar extends BaseCalendar {
     rangeEndingTime.set(Calendar.MINUTE, rangeEndingMinute);
     rangeEndingTime.set(Calendar.SECOND, rangeEndingSecond);
     rangeEndingTime.set(Calendar.MILLISECOND, rangeEndingMillis);
-    return rangeEndingTime.getTime().getTime();
+    return rangeEndingTime.getTimeInMillis();
   }
 
   /**

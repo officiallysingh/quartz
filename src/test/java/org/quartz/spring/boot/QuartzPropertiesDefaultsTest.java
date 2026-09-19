@@ -1,102 +1,71 @@
 package org.quartz.spring.boot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.quartz.impl.StdSchedulerFactory;
-import org.quartz.simpl.RAMJobStore;
 import org.springframework.mock.env.MockEnvironment;
 
 class QuartzPropertiesDefaultsTest {
 
   @Test
-  void autoUsesRamWhenNoMongoClient() {
+  void mongoStoreIsAlwaysConfigured() {
     QuartzProperties properties = new QuartzProperties();
-    assertEquals(JobStoreType.MEMORY, QuartzAutoConfiguration.resolveStoreType(properties, null));
-  }
-
-  @Test
-  void memoryStoreProperties() {
-    QuartzProperties properties = new QuartzProperties();
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
-    assertEquals(
-        RAMJobStore.class.getName(), quartz.getProperty(StdSchedulerFactory.PROP_JOB_STORE_CLASS));
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
+    assertEquals("qrtz_", quartz.getProperty("org.quartz.jobStore.collectionPrefix"));
     assertEquals("10", quartz.getProperty("org.quartz.threadPool.threadCount"));
-    assertTrue(
-        quartz
-            .getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID)
-            .equals(StdSchedulerFactory.DEFAULT_INSTANCE_ID));
+    assertEquals(
+        StdSchedulerFactory.DEFAULT_INSTANCE_ID,
+        quartz.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID));
+    assertEquals("test", quartz.getProperty("org.quartz.jobStore.dbName"));
   }
 
   @Test
   void collectionPrefixDefaultsToQrtz() {
     QuartzProperties properties = new QuartzProperties();
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MONGODB, null, null);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
     assertEquals("qrtz_", quartz.getProperty("org.quartz.jobStore.collectionPrefix"));
   }
 
   @Test
   void collectionPrefixIsConfigurable() {
     QuartzProperties properties = new QuartzProperties();
-    properties.getMongodb().setCollectionPrefix("oxneer_");
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MONGODB, null, null);
+    properties.setCollectionPrefix("oxneer_");
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
     assertEquals("oxneer_", quartz.getProperty("org.quartz.jobStore.collectionPrefix"));
   }
 
   @Test
-  void quartzDatabaseOverridesApplicationMongo() {
-    QuartzProperties properties = new QuartzProperties();
-    properties.getMongodb().setDatabase("sched");
-    MockEnvironment environment = new MockEnvironment();
-    environment.setProperty("spring.mongodb.database", "oxneer");
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(
-            properties, JobStoreType.MONGODB, null, environment);
-    assertEquals("sched", quartz.getProperty("org.quartz.jobStore.dbName"));
-  }
-
-  @Test
-  void databaseFallsBackToApplicationMongo() {
+  void databaseUsesApplicationMongo() {
     QuartzProperties properties = new QuartzProperties();
     MockEnvironment environment = new MockEnvironment();
     environment.setProperty("spring.mongodb.database", "oxneer");
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(
-            properties, JobStoreType.MONGODB, null, environment);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, environment);
     assertEquals("oxneer", quartz.getProperty("org.quartz.jobStore.dbName"));
   }
 
   @Test
-  void databaseFallsBackToLegacySpringDataProperty() {
+  void databaseUsesLegacySpringDataProperty() {
     QuartzProperties properties = new QuartzProperties();
     MockEnvironment environment = new MockEnvironment();
     environment.setProperty("spring.data.mongodb.database", "legacy");
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(
-            properties, JobStoreType.MONGODB, null, environment);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, environment);
     assertEquals("legacy", quartz.getProperty("org.quartz.jobStore.dbName"));
   }
 
   @Test
-  void databaseFallsBackToMongoUriPath() {
+  void databaseUsesMongoUriPath() {
     QuartzProperties properties = new QuartzProperties();
     MockEnvironment environment = new MockEnvironment();
     environment.setProperty("spring.mongodb.uri", "mongodb://localhost:27017/fromuri");
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(
-            properties, JobStoreType.MONGODB, null, environment);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, environment);
     assertEquals("fromuri", quartz.getProperty("org.quartz.jobStore.dbName"));
   }
 
   @Test
-  void memoryStoreUsesSimpleThreadPoolByDefault() {
+  void usesSimpleThreadPoolByDefault() {
     QuartzProperties properties = new QuartzProperties();
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
     assertEquals(
         org.quartz.simpl.SimpleThreadPool.class.getName(),
         quartz.getProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS));
@@ -106,8 +75,7 @@ class QuartzPropertiesDefaultsTest {
   void virtualThreadPoolPropertySwitchesClass() {
     QuartzProperties properties = new QuartzProperties();
     properties.getThreadPool().setVirtual(true);
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
     assertEquals(
         org.quartz.simpl.VirtualThreadPool.class.getName(),
         quartz.getProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS));
@@ -116,8 +84,7 @@ class QuartzPropertiesDefaultsTest {
   @Test
   void misfireThresholdDefaultsToSixtySeconds() {
     QuartzProperties properties = new QuartzProperties();
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
     assertEquals("60000", quartz.getProperty("org.quartz.jobStore.misfireThreshold"));
   }
 
@@ -125,9 +92,47 @@ class QuartzPropertiesDefaultsTest {
   void misfireThresholdDurationIsWrittenAsMillis() {
     QuartzProperties properties = new QuartzProperties();
     properties.setMisfireThreshold(java.time.Duration.ofSeconds(120));
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
     assertEquals("120000", quartz.getProperty("org.quartz.jobStore.misfireThreshold"));
+  }
+
+  @Test
+  void idleWaitTimeDefaultsToThirtySeconds() {
+    QuartzProperties properties = new QuartzProperties();
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
+    assertEquals("30000", quartz.getProperty(StdSchedulerFactory.PROP_SCHED_IDLE_WAIT_TIME));
+  }
+
+  @Test
+  void idleWaitTimeDurationIsWrittenAsMillis() {
+    QuartzProperties properties = new QuartzProperties();
+    properties.setIdleWaitTime(java.time.Duration.ofSeconds(45));
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
+    assertEquals("45000", quartz.getProperty(StdSchedulerFactory.PROP_SCHED_IDLE_WAIT_TIME));
+  }
+
+  @Test
+  void batchTimeWindowDefaultsToZero() {
+    QuartzProperties properties = new QuartzProperties();
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
+    assertEquals("0", quartz.getProperty(StdSchedulerFactory.PROP_SCHED_BATCH_TIME_WINDOW));
+  }
+
+  @Test
+  void typedDurationWinsOverPropertiesOverlay() {
+    QuartzProperties properties = new QuartzProperties();
+    properties.setMisfireThreshold(java.time.Duration.ofSeconds(120));
+    properties.getProperties().put("org.quartz.jobStore.misfireThreshold", "1");
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
+    assertEquals("120000", quartz.getProperty("org.quartz.jobStore.misfireThreshold"));
+  }
+
+  @Test
+  void batchTimeWindowDurationIsWrittenAsMillis() {
+    QuartzProperties properties = new QuartzProperties();
+    properties.setBatchTimeWindow(java.time.Duration.ofMillis(500));
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
+    assertEquals("500", quartz.getProperty(StdSchedulerFactory.PROP_SCHED_BATCH_TIME_WINDOW));
   }
 
   @Test
@@ -135,23 +140,11 @@ class QuartzPropertiesDefaultsTest {
     QuartzProperties properties = new QuartzProperties();
     properties.setClustered(true);
     properties.setClusterCheckinInterval(java.time.Duration.ofSeconds(20));
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MONGODB, null, null);
+    var quartz = QuartzAutoConfiguration.buildQuartzProperties(properties, null);
     assertEquals("true", quartz.getProperty("org.quartz.jobStore.isClustered"));
     assertEquals("20000", quartz.getProperty("org.quartz.jobStore.clusterCheckinInterval"));
     assertEquals(
         StdSchedulerFactory.AUTO_GENERATE_INSTANCE_ID,
-        quartz.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID));
-  }
-
-  @Test
-  void clusteredIsIgnoredForRamStore() {
-    QuartzProperties properties = new QuartzProperties();
-    properties.setClustered(true);
-    var quartz =
-        QuartzAutoConfiguration.buildQuartzProperties(properties, JobStoreType.MEMORY, null, null);
-    assertEquals(
-        StdSchedulerFactory.DEFAULT_INSTANCE_ID,
         quartz.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID));
   }
 }

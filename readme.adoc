@@ -6,32 +6,31 @@ for scheduling and executing jobs.
 == This fork (3.0)
 
 * Requires **Java 26**.
-* `MongoJobStore` is the JDBC job store with MongoDB collections instead of tables (one document per job/trigger; unique indexes; acquire via `findOneAndUpdate`). `RAMJobStore` remains a separate in-memory store for tests and local use.
-* Persistent store is **MongoDB only**. JDBC / RDBMS support has been removed.
+* The only job store is **MongoDB** (`MongoJobStore`): collections instead of JDBC tables (one document per job/trigger; unique indexes; acquire via `findOneAndUpdate`).
+* JDBC / RDBMS and in-memory `RAMJobStore` are not supported.
 * Public fire times use `java.time.Instant` (not `java.util.Date`). `DateBuilder` is the DSL helper that produces those instants (`futureDate`, `tomorrowAt`, `evenMinuteDate`, …) and takes `ZoneId`, not `TimeZone`.
 * Clustering needs a MongoDB replica set and NTP-synced clocks.
 * Keep the official `spring-boot-starter-quartz` off the classpath (it still assumes JDBC).
-  This artifact ships its own auto-configuration. Inject Boot's `MongoClient` (it is not closed
-  by the job store).
+  This artifact ships its own auto-configuration. It uses the application's `MongoClient` when
+  present, otherwise Spring Data `MongoDatabaseFactory` (the job store does not close the client).
 
 YAML (in the Spring Boot application):
 
 ```
 quartz:
   scheduler:
-    job-store-type: auto          # mongodb if a MongoClient bean exists, otherwise ram
     name: quartzScheduler
     auto-startup: true
     wait-for-jobs-to-complete-on-shutdown: true
     clustered: true              # replica set + NTP; Mongo only
     cluster-checkin-interval: 15s
     misfire-threshold: 60s       # 120s, 2m, 120000ms, or 120000
+    idle-wait-time: 30s
+    batch-time-window: 0s
     thread-pool:
       thread-count: 10
       virtual: false
-    mongodb:
-      # database: oxneer     # optional; defaults to spring.mongodb.database
-      collection-prefix: qrtz_
+    collection-prefix: qrtz_
     # properties:
     #   org.quartz.threadPool.threadCount: "10"
 ```
@@ -48,9 +47,6 @@ mvn test
 Example:
 
 ```
-org.quartz.jobStore.class=org.quartz.impl.mongodb.MongoJobStore
-org.quartz.jobStore.mongoUri=mongodb://localhost:27017
-org.quartz.jobStore.dbName=quartz
 org.quartz.jobStore.isClustered=true
 org.quartz.scheduler.instanceId=AUTO
 ```

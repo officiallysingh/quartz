@@ -20,6 +20,7 @@ package org.quartz;
 
 import java.io.Serializable;
 import java.text.ParseException;
+import java.time.Instant;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -293,9 +294,12 @@ public final class CronExpression implements Serializable, Cloneable {
    * @param date the date to evaluate
    * @return a boolean indicating whether the given date satisfies the cron expression
    */
-  public boolean isSatisfiedBy(Date date) {
+  public boolean isSatisfiedBy(Instant instant) {
+    if (instant == null) {
+      return false;
+    }
     Calendar testDateCal = Calendar.getInstance(getTimeZone());
-    testDateCal.setTime(date);
+    testDateCal.setTimeInMillis(instant.toEpochMilli());
     testDateCal.set(Calendar.MILLISECOND, 0);
     Date originalDate = testDateCal.getTime();
 
@@ -313,8 +317,8 @@ public final class CronExpression implements Serializable, Cloneable {
    * @param date the date/time at which to begin the search for the next valid date/time
    * @return the next valid date/time
    */
-  public Date getNextValidTimeAfter(Date date) {
-    return getTimeAfter(date);
+  public Instant getNextValidTimeAfter(Instant instant) {
+    return toInstant(getTimeAfter(toDate(instant)));
   }
 
   /**
@@ -324,12 +328,12 @@ public final class CronExpression implements Serializable, Cloneable {
    * @param date the date/time at which to begin the search for the next invalid date/time
    * @return the next valid date/time
    */
-  public Date getNextInvalidTimeAfter(Date date) {
+  public Instant getNextInvalidTimeAfter(Instant instant) {
     long difference = 1000;
 
     // move back to the nearest second so differences will be accurate
     Calendar adjustCal = Calendar.getInstance(getTimeZone());
-    adjustCal.setTime(date);
+    adjustCal.setTimeInMillis(instant.toEpochMilli());
     adjustCal.set(Calendar.MILLISECOND, 0);
     Date lastDate = adjustCal.getTime();
 
@@ -353,7 +357,7 @@ public final class CronExpression implements Serializable, Cloneable {
       }
     }
 
-    return new Date(lastDate.getTime() + 1000);
+    return Instant.ofEpochMilli(lastDate.getTime() + 1000);
   }
 
   /** Returns the time zone for which this <code>CronExpression</code> will be resolved. */
@@ -1145,7 +1149,11 @@ public final class CronExpression implements Serializable, Cloneable {
   //
   ////////////////////////////////////////////////////////////////////////////
 
-  public Date getTimeAfter(Date afterTime) {
+  public Instant getTimeAfter(Instant afterTime) {
+    return toInstant(getTimeAfter(toDate(afterTime)));
+  }
+
+  Date getTimeAfter(Date afterTime) {
 
     // Computation is based on Gregorian year only.
     Calendar cl = new java.util.GregorianCalendar(getTimeZone());
@@ -1517,7 +1525,11 @@ public final class CronExpression implements Serializable, Cloneable {
    * @return the previous matching time before the given end time, or null if there are no previous
    *     matching times
    */
-  public Date getTimeBefore(Date endTime) {
+  public Instant getTimeBefore(Instant endTime) {
+    return toInstant(getTimeBefore(toDate(endTime)));
+  }
+
+  Date getTimeBefore(Date endTime) {
     // the current implementation is not a direct calculation, but rather
     // uses getTimeAfter with a binary search to find the previous match time
     long end = endTime.getTime();
@@ -1558,9 +1570,17 @@ public final class CronExpression implements Serializable, Cloneable {
   /**
    * NOT YET IMPLEMENTED: Returns the final time that the <code>CronExpression</code> will match.
    */
-  public Date getFinalFireTime() {
+  public Instant getFinalFireTime() {
     // FUTURE_TODO: implement QUARTZ-423
     return null;
+  }
+
+  private static Date toDate(Instant instant) {
+    return instant == null ? null : Date.from(instant);
+  }
+
+  private static Instant toInstant(Date date) {
+    return date == null ? null : date.toInstant();
   }
 
   protected boolean isLeapYear(int year) {
@@ -1636,7 +1656,6 @@ public final class CronExpression implements Serializable, Cloneable {
   }
 
   @Override
-  @Deprecated
   public Object clone() {
     return new CronExpression(this);
   }

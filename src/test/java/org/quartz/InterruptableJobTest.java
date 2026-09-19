@@ -83,6 +83,7 @@ public class InterruptableJobTest {
     config.setProperty("org.quartz.scheduler.instanceId", "AUTO");
     config.setProperty("org.quartz.threadPool.threadCount", "2");
     config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
+    MongoSchedulerSupport.applyJobStore(config);
     Scheduler sched = new StdSchedulerFactory(config).getScheduler();
     sched.start();
 

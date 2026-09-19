@@ -172,6 +172,6 @@ public class WeeklyCalendar extends BaseCalendar implements Calendar, Serializab
       wday = cl.get(java.util.Calendar.DAY_OF_WEEK);
     }
 
-    return cl.getTime().getTime();
+    return cl.getTimeInMillis();
   }
 }

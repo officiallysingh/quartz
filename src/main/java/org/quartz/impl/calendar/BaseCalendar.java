@@ -19,7 +19,6 @@
 package org.quartz.impl.calendar;
 
 import java.io.Serializable;
-import java.util.Date;
 import java.util.TimeZone;
 import org.quartz.Calendar;
 
@@ -177,7 +176,7 @@ public class BaseCalendar implements Calendar, Serializable, Cloneable {
    */
   protected java.util.Calendar createJavaCalendar(long timeStamp) {
     java.util.Calendar calendar = createJavaCalendar();
-    calendar.setTime(new Date(timeStamp));
+    calendar.setTimeInMillis(timeStamp);
     return calendar;
   }
 

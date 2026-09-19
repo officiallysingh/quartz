@@ -76,7 +76,7 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
     }
 
     // Check baseCalendar first
-    if (!super.isTimeIncluded(day.getTime().getTime())) {
+    if (!super.isTimeIncluded(day.getTimeInMillis())) {
       return true;
     }
 
@@ -222,7 +222,7 @@ public class AnnualCalendar extends BaseCalendar implements Calendar, Serializab
       day.add(java.util.Calendar.DATE, 1);
     }
 
-    return day.getTime().getTime();
+    return day.getTimeInMillis();
   }
 }
 

@@ -96,7 +96,7 @@ class SystemPropertyInstanceIdGeneratorTest {
     config.setProperty("org.quartz.scheduler.instanceIdGenerator.systemPropertyName", "blah.blah");
     config.setProperty("org.quartz.threadPool.threadCount", "1");
     config.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-    config.setProperty("org.quartz.jobStore.class", org.quartz.simpl.RAMJobStore.class.getName());
+    org.quartz.MongoSchedulerSupport.applyJobStore(config);
 
     Scheduler sched = new StdSchedulerFactory(config).getScheduler();
 

@@ -40,7 +40,11 @@ public class DailyTimeIntervalScheduleBuilderTest {
 
   @Test
   void testScheduleActualTrigger() throws Exception {
-    Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+    Scheduler scheduler =
+        new StdSchedulerFactory(
+                MongoSchedulerSupport.schedulerProperties(
+                    "DailyTimeIntervalScheduleBuilderTest", 4))
+            .getScheduler();
     JobDetail job = newJob(MyJob.class).build();
     DailyTimeIntervalTrigger trigger =
         newTrigger()
@@ -62,7 +66,11 @@ public class DailyTimeIntervalScheduleBuilderTest {
     // or where daylight savings transitions could occur and confuse the assertions...
     if (currHour < 3) return;
 
-    Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+    Scheduler scheduler =
+        new StdSchedulerFactory(
+                MongoSchedulerSupport.schedulerProperties(
+                    "DailyTimeIntervalScheduleBuilderTestMid", 4))
+            .getScheduler();
     JobDetail job = newJob(MyJob.class).build();
     Trigger trigger =
         newTrigger()

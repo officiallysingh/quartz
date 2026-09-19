@@ -37,11 +37,12 @@ import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.MongoSchedulerSupport;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerFactory;
 import org.quartz.SimpleTrigger;
 import org.quartz.impl.StdSchedulerFactory;
-import org.quartz.simpl.RAMJobStore;
+import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.spi.OperableTrigger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,8 +68,7 @@ class QTZ336_MissSchedulingChangeSignalTest {
         "org.quartz.scheduler.name",
         "QTZ336_MissSchedulingChangeSignalTest.simpleScheduleAlwaysFiredUnder20s");
     properties.setProperty("org.quartz.scheduler.skipUpdateCheck", "true");
-    // Use a custom RAMJobStore to produce context switches leading to the race condition
-    properties.setProperty("org.quartz.jobStore.class", SlowRAMJobStore.class.getName());
+    MongoSchedulerSupport.applyJobStore(properties);
     SchedulerFactory sf = new StdSchedulerFactory(properties);
     Scheduler sched = sf.getScheduler();
     LOG.info("------- Initialization Complete -----------");
@@ -155,11 +155,11 @@ class QTZ336_MissSchedulingChangeSignalTest {
     }
   }
 
-  /** Custom RAMJobStore for producing context switches. */
-  public static class SlowRAMJobStore extends RAMJobStore {
+  /** Custom MongoJobStore for producing context switches. */
+  public static class SlowMongoJobStore extends MongoJobStore {
     @Override
     public List<OperableTrigger> acquireNextTriggers(
-        long noLaterThan, int maxCount, long timeWindow) {
+        long noLaterThan, int maxCount, long timeWindow) throws org.quartz.JobPersistenceException {
       List<OperableTrigger> nextTriggers =
           super.acquireNextTriggers(noLaterThan, maxCount, timeWindow);
       try {

@@ -18,6 +18,7 @@
 
 package org.quartz.spi;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +45,7 @@ import org.quartz.impl.matchers.GroupMatcher;
  * <p>Storage of <code>Job</code> s and <code>Trigger</code> s should be keyed on the combination of
  * their name and group for uniqueness.
  *
- * <p>This library ships two implementations: {@link org.quartz.simpl.RAMJobStore} (volatile) and
- * {@link org.quartz.impl.mongodb.MongoJobStore} (persistent / clustered, JDBC-style collections).
+ * <p>This library ships {@link org.quartz.impl.mongodb.MongoJobStore} (persistent / clustered).
  *
  * @see org.quartz.core.QuartzScheduler
  * @see org.quartz.Trigger
@@ -100,10 +100,10 @@ public interface JobStore {
   boolean supportsPersistence();
 
   /**
-   * How long (in milliseconds) the <code>JobStore</code> implementation estimates that it will take
-   * to release a trigger and acquire a new one.
+   * How long the <code>JobStore</code> implementation estimates that it will take to release a
+   * trigger and acquire a new one.
    */
-  long getEstimatedTimeToReleaseAndAcquireTrigger();
+  Duration getEstimatedTimeToReleaseAndAcquireTrigger();
 
   /** Whether or not the <code>JobStore</code> implementation is clustered. */
   boolean isClustered();
@@ -165,8 +165,7 @@ public interface JobStore {
 
   /**
    * Gets all the <code>{@link org.quartz.JobDetail}s</code> in the matching groups. These will NOT
-   * necessarily be in lexicographical order, particularly on {@link org.quartz.simpl.RAMJobStore}
-   * You may need to re-sort them yourself.
+   * necessarily be in lexicographical order. You may need to re-sort them yourself.
    *
    * @param matcher Matcher to evaluate against known groups
    * @return List of all JobDetail matching
@@ -607,17 +606,17 @@ public interface JobStore {
   void setThreadPoolSize(int poolSize);
 
   /**
-   * Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
+   * How long to wait when accessing this job store repeatedly fails.
    *
    * <p>Called by the executor thread(s) when calls to {@link #acquireNextTriggers} fail more than
    * once in succession, and the thread thus wants to wait a bit before trying again, to not consume
    * 100% CPU, write huge amounts of errors into logs, etc. in cases like the DB being
    * offline/restarting.
    *
-   * <p>The delay returned by implementations should be between 20 and 600000 milliseconds.
+   * <p>The delay returned by implementations should be between 20ms and 10 minutes.
    *
    * @param failureCount the number of successive failures seen so far
-   * @return the time (in milliseconds) to wait before trying again
+   * @return how long to wait before trying again
    */
-  long getAcquireRetryDelay(int failureCount);
+  Duration getAcquireRetryDelay(int failureCount);
 }

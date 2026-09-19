@@ -17,14 +17,15 @@
  */
 package org.quartz.impl.triggers;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.Year;
+import java.time.ZoneId;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Set;
 import org.quartz.DailyTimeIntervalScheduleBuilder;
 import org.quartz.DailyTimeIntervalTrigger;
 import org.quartz.DateBuilder.IntervalUnit;
-import org.quartz.Instants;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.ScheduleBuilder;
@@ -88,8 +89,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    *
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
-  private static final int YEAR_TO_GIVEUP_SCHEDULING_AT =
-      java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) + 100;
+  private static final int YEAR_TO_GIVEUP_SCHEDULING_AT = Year.now().getValue() + 100;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -99,13 +99,13 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  private Date startTime = null;
+  private Instant startTime = null;
 
-  private Date endTime = null;
+  private Instant endTime = null;
 
-  private Date nextFireTime = null;
+  private Instant nextFireTime = null;
 
-  private Date previousFireTime = null;
+  private Instant previousFireTime = null;
 
   private int repeatCount = REPEAT_INDEFINITELY;
 
@@ -302,9 +302,9 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
   @Override
   public Instant getStartTime() {
     if (startTime == null) {
-      startTime = new Date();
+      startTime = Instant.now();
     }
-    return Instants.fromDate(startTime);
+    return startTime;
   }
 
   /**
@@ -318,13 +318,11 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
       throw new IllegalArgumentException("Start time cannot be null");
     }
 
-    Date start = Instants.toDate(startTime);
-    Date eTime = endTime;
-    if (eTime != null && eTime.before(start)) {
+    if (endTime != null && endTime.isBefore(startTime)) {
       throw new IllegalArgumentException("End time cannot be before start time");
     }
 
-    this.startTime = start;
+    this.startTime = startTime;
   }
 
   /**
@@ -334,7 +332,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    */
   @Override
   public Instant getEndTime() {
-    return Instants.fromDate(endTime);
+    return endTime;
   }
 
   /**
@@ -345,13 +343,11 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    */
   @Override
   public void setEndTime(Instant endTime) {
-    Date end = Instants.toDate(endTime);
-    Date sTime = startTime;
-    if (sTime != null && end != null && sTime.after(end)) {
+    if (startTime != null && endTime != null && startTime.isAfter(endTime)) {
       throw new IllegalArgumentException("End time cannot be before start time");
     }
 
-    this.endTime = end;
+    this.endTime = endTime;
   }
 
   /* (non-Javadoc)
@@ -440,11 +436,13 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     }
 
     if (instr == MISFIRE_INSTRUCTION_DO_NOTHING) {
-      Date newFireTime = fireTimeAfter(new Date());
-      while (newFireTime != null && cal != null && !cal.isTimeIncluded(newFireTime.getTime())) {
+      Instant newFireTime = fireTimeAfter(Instant.now());
+      while (newFireTime != null
+          && cal != null
+          && !cal.isTimeIncluded(newFireTime.toEpochMilli())) {
         newFireTime = fireTimeAfter(newFireTime);
       }
-      setNextFireTime(Instants.fromDate(newFireTime));
+      setNextFireTime(newFireTime);
     } else if (instr == MISFIRE_INSTRUCTION_FIRE_ONCE_NOW) {
       // fire once now...
       setNextFireTime(Instant.now());
@@ -470,16 +468,11 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
 
     while (nextFireTime != null
         && calendar != null
-        && !calendar.isTimeIncluded(nextFireTime.getTime())) {
+        && !calendar.isTimeIncluded(nextFireTime.toEpochMilli())) {
 
       nextFireTime = fireTimeAfter(nextFireTime);
 
-      if (nextFireTime == null) break;
-
-      // avoid infinite loop
-      java.util.Calendar c = java.util.Calendar.getInstance();
-      c.setTime(nextFireTime);
-      if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+      if (pastGiveUpYear(nextFireTime)) {
         nextFireTime = null;
       }
     }
@@ -493,30 +486,26 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * @see org.quartz.impl.triggers.AbstractTrigger#updateWithNewCalendar(org.quartz.Calendar, long)
    */
   @Override
-  public void updateWithNewCalendar(org.quartz.Calendar calendar, long misfireThreshold) {
+  public void updateWithNewCalendar(org.quartz.Calendar calendar, Duration misfireThreshold) {
     nextFireTime = fireTimeAfter(previousFireTime);
 
     if (nextFireTime == null || calendar == null) {
       return;
     }
 
-    Date now = new Date();
-    while (nextFireTime != null && !calendar.isTimeIncluded(nextFireTime.getTime())) {
+    Instant now = Instant.now();
+    while (nextFireTime != null && !calendar.isTimeIncluded(nextFireTime.toEpochMilli())) {
 
       nextFireTime = fireTimeAfter(nextFireTime);
 
-      if (nextFireTime == null) break;
-
-      // avoid infinite loop
-      java.util.Calendar c = java.util.Calendar.getInstance();
-      c.setTime(nextFireTime);
-      if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+      if (pastGiveUpYear(nextFireTime)) {
         nextFireTime = null;
+        break;
       }
 
-      if (nextFireTime != null && nextFireTime.before(now)) {
-        long diff = now.getTime() - nextFireTime.getTime();
-        if (diff >= misfireThreshold) {
+      if (nextFireTime != null && nextFireTime.isBefore(now)) {
+        Duration threshold = misfireThreshold == null ? Duration.ZERO : misfireThreshold;
+        if (Duration.between(nextFireTime, now).compareTo(threshold) >= 0) {
           nextFireTime = fireTimeAfter(nextFireTime);
         }
       }
@@ -538,31 +527,26 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
   @Override
   public Instant computeFirstFireTime(org.quartz.Calendar calendar) {
 
-    nextFireTime = fireTimeAfter(new Date(startTime.getTime() - 1000L));
+    nextFireTime = fireTimeAfter(startTime.minusMillis(1000L));
 
     // Check calendar for date-time exclusion
     while (nextFireTime != null
         && calendar != null
-        && !calendar.isTimeIncluded(nextFireTime.getTime())) {
+        && !calendar.isTimeIncluded(nextFireTime.toEpochMilli())) {
 
       nextFireTime = fireTimeAfter(nextFireTime);
 
-      if (nextFireTime == null) break;
-
-      // avoid infinite loop
-      java.util.Calendar c = java.util.Calendar.getInstance();
-      c.setTime(nextFireTime);
-      if (c.get(java.util.Calendar.YEAR) > YEAR_TO_GIVEUP_SCHEDULING_AT) {
+      if (pastGiveUpYear(nextFireTime)) {
         return null;
       }
     }
 
-    return Instants.fromDate(nextFireTime);
+    return nextFireTime;
   }
 
-  private Calendar createCalendarTime(Date dateTime) {
+  private Calendar createCalendarTime(Instant dateTime) {
     Calendar cal = Calendar.getInstance();
-    cal.setTime(dateTime);
+    cal.setTimeInMillis(dateTime.toEpochMilli());
     return cal;
   }
 
@@ -578,7 +562,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    */
   @Override
   public Instant getNextFireTime() {
-    return Instants.fromDate(nextFireTime);
+    return nextFireTime;
   }
 
   /**
@@ -587,7 +571,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    */
   @Override
   public Instant getPreviousFireTime() {
-    return Instants.fromDate(previousFireTime);
+    return previousFireTime;
   }
 
   /**
@@ -596,7 +580,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * <p><b>This method should not be invoked by client code.</b>
    */
   public void setNextFireTime(Instant nextFireTime) {
-    this.nextFireTime = Instants.toDate(nextFireTime);
+    this.nextFireTime = nextFireTime;
   }
 
   /**
@@ -605,7 +589,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    * <p><b>This method should not be invoked by client code.</b>
    */
   public void setPreviousFireTime(Instant previousFireTime) {
-    this.previousFireTime = Instants.toDate(previousFireTime);
+    this.previousFireTime = previousFireTime;
   }
 
   /**
@@ -615,10 +599,10 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    */
   @Override
   public Instant getFireTimeAfter(Instant afterTime) {
-    return Instants.fromDate(fireTimeAfter(Instants.toDate(afterTime)));
+    return fireTimeAfter(afterTime);
   }
 
-  public Date fireTimeAfter(Date afterTime) {
+  public Instant fireTimeAfter(Instant afterTime) {
     // Check if trigger has completed or not.
     if (complete) {
       return null;
@@ -631,42 +615,42 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
 
     // a. Increment afterTime by a second, so that we are comparing against a time after it!
     if (afterTime == null) {
-      afterTime = new Date(System.currentTimeMillis() + 1000L);
+      afterTime = Instant.now().plusMillis(1000L);
     } else {
-      afterTime = new Date(afterTime.getTime() + 1000L);
+      afterTime = afterTime.plusMillis(1000L);
     }
 
     // make sure afterTime is at least startTime
-    if (afterTime.before(startTime)) afterTime = startTime;
+    if (afterTime.isBefore(startTime)) afterTime = startTime;
 
     // b.Check to see if afterTime is after endTimeOfDay or not. If yes, then we need to advance to
     // next day as well.
     boolean afterTimePastEndTimeOfDay = false;
     if (endTimeOfDay != null) {
       afterTimePastEndTimeOfDay =
-          afterTime.getTime() > endTimeOfDay.getTimeOfDayForDate(afterTime).getTime();
+          afterTime.toEpochMilli() > endTimeOfDay.getTimeOfDayForDate(afterTime).toEpochMilli();
     }
     // c. now we need to move to the next valid day of week if either:
     // the given time is past the end time of day, or given time is not on a valid day of week
-    Date fireTime = advanceToNextDayOfWeekIfNecessary(afterTime, afterTimePastEndTimeOfDay);
+    Instant fireTime = advanceToNextDayOfWeekIfNecessary(afterTime, afterTimePastEndTimeOfDay);
     if (fireTime == null) return null;
 
     // d. Calculate and save fireTimeEndDate variable for later use
-    Date fireTimeEndDate;
+    Instant fireTimeEndDate;
     if (endTimeOfDay == null)
       fireTimeEndDate = new TimeOfDay(23, 59, 59).getTimeOfDayForDate(fireTime);
     else fireTimeEndDate = endTimeOfDay.getTimeOfDayForDate(fireTime);
 
     // e. Check fireTime against startTime or startTimeOfDay to see which go first.
-    Date fireTimeStartDate = startTimeOfDay.getTimeOfDayForDate(fireTime);
-    if (fireTime.before(fireTimeStartDate)) {
+    Instant fireTimeStartDate = startTimeOfDay.getTimeOfDayForDate(fireTime);
+    if (fireTime.isBefore(fireTimeStartDate)) {
       return fireTimeStartDate;
     }
 
     // f. Continue to calculate the fireTime by incremental unit of intervals.
     // recall that if fireTime was less that fireTimeStartDate, we didn't get this far
-    long fireMillis = fireTime.getTime();
-    long startMillis = fireTimeStartDate.getTime();
+    long fireMillis = fireTime.toEpochMilli();
+    long startMillis = fireTimeStartDate.toEpochMilli();
     long secondsAfterStart = (fireMillis - startMillis) / 1000L;
     long repeatLong = getRepeatInterval();
     Calendar sTime = createCalendarTime(fireTimeStartDate);
@@ -675,21 +659,21 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
       long jumpCount = secondsAfterStart / repeatLong;
       if (secondsAfterStart % repeatLong != 0) jumpCount++;
       sTime.add(Calendar.SECOND, getRepeatInterval() * (int) jumpCount);
-      fireTime = sTime.getTime();
+      fireTime = sTime.toInstant();
     } else if (repeatUnit.equals(IntervalUnit.MINUTE)) {
       long jumpCount = secondsAfterStart / (repeatLong * 60L);
       if (secondsAfterStart % (repeatLong * 60L) != 0) jumpCount++;
       sTime.add(Calendar.MINUTE, getRepeatInterval() * (int) jumpCount);
-      fireTime = sTime.getTime();
+      fireTime = sTime.toInstant();
     } else if (repeatUnit.equals(IntervalUnit.HOUR)) {
       long jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
       if (secondsAfterStart % (repeatLong * 60L * 60L) != 0) jumpCount++;
       sTime.add(Calendar.HOUR_OF_DAY, getRepeatInterval() * (int) jumpCount);
-      fireTime = sTime.getTime();
+      fireTime = sTime.toInstant();
     }
 
     // g. Ensure this new fireTime is within the day, or else we need to advance to next day.
-    if (fireTime.after(fireTimeEndDate)) {
+    if (fireTime.isAfter(fireTimeEndDate)) {
       fireTime = advanceToNextDayOfWeekIfNecessary(fireTime, isSameDay(fireTime, fireTimeEndDate));
       // make sure we hit the startTimeOfDay on the new day
       fireTime = startTimeOfDay.getTimeOfDayForDate(fireTime);
@@ -699,7 +683,7 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     return fireTime;
   }
 
-  private boolean isSameDay(Date d1, Date d2) {
+  private boolean isSameDay(Instant d1, Instant d2) {
 
     Calendar c1 = createCalendarTime(d1);
     Calendar c2 = createCalendarTime(d2);
@@ -719,11 +703,12 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
    *     fireTime should move to next day anyway.
    * @return a next day fireTime.
    */
-  private Date advanceToNextDayOfWeekIfNecessary(Date fireTime, boolean forceToAdvanceNextDay) {
+  private Instant advanceToNextDayOfWeekIfNecessary(
+      Instant fireTime, boolean forceToAdvanceNextDay) {
     // a. Advance or adjust to next dayOfWeek if need to first, starting next day with
     // startTimeOfDay.
     TimeOfDay sTimeOfDay = getStartTimeOfDay();
-    Date fireTimeStartDate = sTimeOfDay.getTimeOfDayForDate(fireTime);
+    Instant fireTimeStartDate = sTimeOfDay.getTimeOfDayForDate(fireTime);
     Calendar fireTimeStartDateCal = createCalendarTime(fireTimeStartDate);
     int dayOfWeekOfFireTime = fireTimeStartDateCal.get(Calendar.DAY_OF_WEEK);
 
@@ -736,15 +721,15 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
         fireTimeStartDateCal.add(Calendar.DATE, 1);
         dayOfWeekOfFireTime = fireTimeStartDateCal.get(Calendar.DAY_OF_WEEK);
         if (daysOfWeekToFire.contains(dayOfWeekOfFireTime)) {
-          fireTime = fireTimeStartDateCal.getTime();
+          fireTime = fireTimeStartDateCal.toInstant();
           break;
         }
       }
     }
 
     // Check fireTime not pass the endTime
-    Date eTime = endTime;
-    if (eTime != null && fireTime.getTime() > eTime.getTime()) {
+    Instant eTime = endTime;
+    if (eTime != null && fireTime.toEpochMilli() > eTime.toEpochMilli()) {
       return null;
     }
 
@@ -765,14 +750,19 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
 
     // We have an endTime, we still need to check to see if there is a endTimeOfDay if that's
     // applicable.
-    Date eTime = endTime;
+    Instant eTime = endTime;
     if (endTimeOfDay != null) {
-      Date endTimeOfDayDate = endTimeOfDay.getTimeOfDayForDate(eTime);
-      if (eTime.getTime() < endTimeOfDayDate.getTime()) {
+      Instant endTimeOfDayDate = endTimeOfDay.getTimeOfDayForDate(eTime);
+      if (eTime.toEpochMilli() < endTimeOfDayDate.toEpochMilli()) {
         eTime = endTimeOfDayDate;
       }
     }
-    return Instants.fromDate(eTime);
+    return eTime;
+  }
+
+  private static boolean pastGiveUpYear(Instant time) {
+    return time != null
+        && time.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT;
   }
 
   /** Determines whether or not the <code>DailyTimeIntervalTrigger</code> will occur again. */

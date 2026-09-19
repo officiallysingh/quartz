@@ -18,6 +18,7 @@
 
 package org.quartz.core;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -68,9 +69,9 @@ public class QuartzSchedulerThread extends Thread {
 
   // When the scheduler finds there is no current trigger to fire, how long
   // it should wait until checking again...
-  private static final long DEFAULT_IDLE_WAIT_TIME = 30L * 1000L;
+  private static final Duration DEFAULT_IDLE_WAIT_TIME = Duration.ofSeconds(30);
 
-  private long idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
+  private Duration idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
 
   private int idleWaitVariableness = 7 * 1000;
 
@@ -124,13 +125,13 @@ public class QuartzSchedulerThread extends Thread {
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  void setIdleWaitTime(long waitTime) {
+  void setIdleWaitTime(Duration waitTime) {
     idleWaitTime = waitTime;
-    idleWaitVariableness = (int) (waitTime * 0.2);
+    idleWaitVariableness = (int) (waitTime.toMillis() * 0.2);
   }
 
   private long getRandomizedIdleWaitTime() {
-    return idleWaitTime - random.nextInt(idleWaitVariableness);
+    return idleWaitTime.toMillis() - random.nextInt(idleWaitVariableness);
   }
 
   /** Signals the main processing loop to pause at the next possible point. */
@@ -272,9 +273,9 @@ public class QuartzSchedulerThread extends Thread {
                 qsRsrcs
                     .getJobStore()
                     .acquireNextTriggers(
-                        now + idleWaitTime,
+                        now + idleWaitTime.toMillis(),
                         Math.min(availThreadCount, qsRsrcs.getMaxBatchSize()),
-                        qsRsrcs.getBatchTimeWindow());
+                        qsRsrcs.getBatchTimeWindow().toMillis());
             acquiresFailed = 0;
             if (log.isDebugEnabled())
               log.debug("batch acquisition of {} triggers", triggers == null ? 0 : triggers.size());
@@ -436,24 +437,21 @@ public class QuartzSchedulerThread extends Thread {
     qsRsrcs = null;
   }
 
-  private static final long MIN_DELAY = 20;
-  private static final long MAX_DELAY = 600000;
+  private static final Duration MIN_DELAY = Duration.ofMillis(20);
+  private static final Duration MAX_DELAY = Duration.ofMinutes(10);
 
   private static long computeDelayForRepeatedErrors(JobStore jobStore, int acquiresFailed) {
-    long delay;
+    Duration delay;
     try {
       delay = jobStore.getAcquireRetryDelay(acquiresFailed);
     } catch (Exception ignored) {
       // we're trying to be useful in case of error states, not cause
       // additional errors..
-      delay = 100;
+      delay = Duration.ofMillis(100);
     }
-
-    // sanity check per getAcquireRetryDelay specification
-    if (delay < MIN_DELAY) delay = MIN_DELAY;
-    if (delay > MAX_DELAY) delay = MAX_DELAY;
-
-    return delay;
+    if (delay == null || delay.compareTo(MIN_DELAY) < 0) delay = MIN_DELAY;
+    if (delay.compareTo(MAX_DELAY) > 0) delay = MAX_DELAY;
+    return delay.toMillis();
   }
 
   private boolean releaseIfScheduleChangedSignificantly(

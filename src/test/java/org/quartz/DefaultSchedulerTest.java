@@ -28,7 +28,10 @@ class DefaultSchedulerTest {
 
   @Test
   void testAddJobNoTrigger() throws Exception {
-    Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+    Scheduler scheduler =
+        new StdSchedulerFactory(
+                MongoSchedulerSupport.schedulerProperties("DefaultSchedulerTest", 4))
+            .getScheduler();
     JobDetailImpl jobDetail = new JobDetailImpl();
     jobDetail.setName("testjob");
 

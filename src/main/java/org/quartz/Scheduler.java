@@ -18,6 +18,7 @@
 
 package org.quartz;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -195,24 +196,24 @@ public interface Scheduler {
    *
    * @throws SchedulerException if <code>shutdown()</code> has been called, or there is an error
    *     within the <code>Scheduler</code>.
-   * @see #startDelayed(int)
+   * @see #startDelayed(Duration)
    * @see #standby()
    * @see #shutdown()
    */
   void start() throws SchedulerException;
 
   /**
-   * Calls {#start()} after the indicated number of seconds. (This call does not block). This can be
-   * useful within applications that have initializers that create the scheduler immediately, before
-   * the resources needed by the executing jobs have been fully initialized.
+   * Calls {@link #start()} after the given delay. This call does not block. Useful when the
+   * scheduler is created before the resources jobs need are ready.
    *
-   * @throws SchedulerException if <code>shutdown()</code> has been called, or there is an error
-   *     within the <code>Scheduler</code>.
+   * @param delay how long to wait before starting; must be zero or positive
+   * @throws SchedulerException if <code>shutdown()</code> has been called, the delay is invalid, or
+   *     there is an error within the <code>Scheduler</code>.
    * @see #start()
    * @see #standby()
    * @see #shutdown()
    */
-  void startDelayed(int seconds) throws SchedulerException;
+  void startDelayed(Duration delay) throws SchedulerException;
 
   /**
    * Whether the scheduler has been started.

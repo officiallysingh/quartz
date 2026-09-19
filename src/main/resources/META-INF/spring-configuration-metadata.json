@@ -10,12 +10,6 @@
       "type": "org.quartz.spring.boot.QuartzProperties$ThreadPool",
       "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "sourceMethod": "getThreadPool()"
-    },
-    {
-      "name": "quartz.scheduler.mongodb",
-      "type": "org.quartz.spring.boot.QuartzProperties$Mongodb",
-      "sourceType": "org.quartz.spring.boot.QuartzProperties",
-      "sourceMethod": "getMongodb()"
     }
   ],
   "properties": [
@@ -25,13 +19,6 @@
       "description": "Whether Quartz auto-configuration is enabled.",
       "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": true
-    },
-    {
-      "name": "quartz.scheduler.job-store-type",
-      "type": "org.quartz.spring.boot.JobStoreType",
-      "description": "Job store. AUTO uses MongoDB when a MongoClient bean exists, otherwise RAM.",
-      "sourceType": "org.quartz.spring.boot.QuartzProperties",
-      "defaultValue": "auto"
     },
     {
       "name": "quartz.scheduler.name",
@@ -78,9 +65,23 @@
       "defaultValue": "60s"
     },
     {
+      "name": "quartz.scheduler.idle-wait-time",
+      "type": "java.time.Duration",
+      "description": "How long the scheduler thread sleeps when no triggers are ready. Must be at least 1s. Unitless numbers are milliseconds. Examples: 30s, 30000ms, 30000.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "quartz.scheduler.batch-time-window",
+      "type": "java.time.Duration",
+      "description": "Fire-ahead window when acquiring a batch of triggers. Unitless numbers are milliseconds. Examples: 0s, 500ms, 500.",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
+      "defaultValue": "0s"
+    },
+    {
       "name": "quartz.scheduler.clustered",
       "type": "java.lang.Boolean",
-      "description": "Multi-JVM clustering. Requires MongoDB, a replica set, and NTP. Ignored for RAM.",
+      "description": "Multi-JVM clustering. Requires a Mongo replica set and NTP.",
       "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": false
     },
@@ -94,7 +95,7 @@
     {
       "name": "quartz.scheduler.properties",
       "type": "java.util.Map<java.lang.String,java.lang.String>",
-      "description": "Extra org.quartz.* keys overlayed last.",
+      "description": "Extra org.quartz.* keys applied first. Typed quartz.scheduler.* Duration fields win.",
       "sourceType": "org.quartz.spring.boot.QuartzProperties"
     },
     {
@@ -119,22 +120,10 @@
       "defaultValue": false
     },
     {
-      "name": "quartz.scheduler.mongodb.uri",
-      "type": "java.lang.String",
-      "description": "Used only when no MongoClient bean is present.",
-      "sourceType": "org.quartz.spring.boot.QuartzProperties$Mongodb"
-    },
-    {
-      "name": "quartz.scheduler.mongodb.database",
-      "type": "java.lang.String",
-      "description": "Mongo database for Quartz collections. When unset, uses the application's spring.mongodb.database (or the database in the Mongo URI).",
-      "sourceType": "org.quartz.spring.boot.QuartzProperties$Mongodb"
-    },
-    {
-      "name": "quartz.scheduler.mongodb.collection-prefix",
+      "name": "quartz.scheduler.collection-prefix",
       "type": "java.lang.String",
       "description": "Prefix for Quartz collections (qrtz_jobs, qrtz_triggers, …).",
-      "sourceType": "org.quartz.spring.boot.QuartzProperties$Mongodb",
+      "sourceType": "org.quartz.spring.boot.QuartzProperties",
       "defaultValue": "qrtz_"
     }
   ]

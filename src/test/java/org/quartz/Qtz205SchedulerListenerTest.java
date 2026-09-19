@@ -138,6 +138,7 @@ class Qtz205SchedulerListenerTest {
     Properties props = new Properties();
     props.setProperty("org.quartz.scheduler.idleWaitTime", "1500");
     props.setProperty("org.quartz.threadPool.threadCount", "2");
+    MongoSchedulerSupport.applyJobStore(props);
     Scheduler scheduler = new StdSchedulerFactory(props).getScheduler();
     scheduler.getListenerManager().addSchedulerListener(schedulerListener);
     scheduler.getListenerManager().addTriggerListener(triggerListener);

@@ -6,16 +6,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.bson.Document;
+import org.bson.types.Binary;
 import org.junit.jupiter.api.Test;
 import org.quartz.AbstractJobStoreTest;
 import org.quartz.JobDetail;
 import org.quartz.SimpleScheduleBuilder;
+import org.quartz.Trigger;
 import org.quartz.simpl.CascadingClassLoadHelper;
 import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
@@ -191,5 +197,87 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
         destroyJobStore("bulkStore");
       }
     }
+  }
+
+  @Test
+  void acquireContinuesWhenJobPayloadCannotBeDeserialized() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("badPayload");
+    ClassLoadHelper helper = new CascadingClassLoadHelper();
+    helper.initialize();
+    store.initialize(helper, new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail bad = newJob(MyJob.class).withIdentity("bad", "g").build();
+      JobDetail good = newJob(MyJob.class).withIdentity("good", "g").build();
+      OperableTrigger badTrigger = readyTrigger("bad-trig", "g", bad, start);
+      OperableTrigger goodTrigger = readyTrigger("good-trig", "g", good, start);
+      store.storeJobAndTrigger(bad, badTrigger);
+      store.storeJobAndTrigger(good, goodTrigger);
+
+      store
+          .getMongoClient()
+          .getDatabase(store.getDbName())
+          .getCollection("qrtz_jobs")
+          .updateOne(
+              Filters.and(Filters.eq("name", "bad"), Filters.eq("group", "g")),
+              Updates.set("payload", new Binary(new byte[] {0, 1, 2, 3})));
+
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 10, 0);
+      assertEquals(1, acquired.size());
+      assertEquals("good-trig", acquired.get(0).getKey().getName());
+      assertEquals(Trigger.TriggerState.ERROR, store.getTriggerState(badTrigger.getKey()));
+    } finally {
+      destroyJobStore("badPayload");
+    }
+  }
+
+  @Test
+  void initializeCollapsesDuplicateLocksThenCreatesUniqueIndex() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("dupLocks");
+    ClassLoadHelper helper = new CascadingClassLoadHelper();
+    helper.initialize();
+    store.initialize(helper, new SampleSignaler());
+    var locks = store.getMongoClient().getDatabase(store.getDbName()).getCollection("qrtz_locks");
+    locks.dropIndex("schedName_1_lockName_1");
+    locks.insertOne(
+        new Document("schedName", "dupLocks")
+            .append("lockName", "TRIGGER_ACCESS")
+            .append("owner", "stale")
+            .append("expires", Instant.now().minusSeconds(60)));
+    locks.insertOne(
+        new Document("schedName", "dupLocks")
+            .append("lockName", "TRIGGER_ACCESS")
+            .append("owner", "stale-2")
+            .append("expires", Instant.now().minusSeconds(30)));
+    assertTrue(locks.countDocuments() >= 2);
+
+    MongoJobStore again = new MongoJobStore();
+    again.setMongoUri(mongo.getConnectionString());
+    again.setDbName(store.getDbName());
+    again.setCollectionPrefix("qrtz_");
+    again.setInstanceName("dupLocks");
+    again.setInstanceId("test-node-2");
+    again.initialize(helper, new SampleSignaler());
+    try {
+      assertEquals(1, locks.countDocuments(Filters.eq("lockName", "TRIGGER_ACCESS")));
+    } finally {
+      again.shutdown();
+      destroyJobStore("dupLocks");
+    }
+  }
+
+  private static OperableTrigger readyTrigger(
+      String name, String group, JobDetail job, Instant start) {
+    OperableTrigger trigger =
+        (OperableTrigger)
+            newTrigger()
+                .withIdentity(name, group)
+                .forJob(job)
+                .startAt(start)
+                .withSchedule(SimpleScheduleBuilder.repeatSecondlyForever())
+                .build();
+    trigger.computeFirstFireTime(null);
+    return trigger;
   }
 }

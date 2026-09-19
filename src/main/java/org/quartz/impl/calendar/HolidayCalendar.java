@@ -19,8 +19,8 @@
 package org.quartz.impl.calendar;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Collections;
-import java.util.Date;
 import java.util.SortedSet;
 import java.util.TimeZone;
 import java.util.TreeSet;
@@ -40,7 +40,7 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
   private static final long serialVersionUID = -7590908752291814693L;
 
   // A sorted set to store the holidays
-  private TreeSet<Date> dates = new TreeSet<>();
+  private TreeSet<Instant> dates = new TreeSet<>();
 
   public HolidayCalendar() {}
 
@@ -74,7 +74,7 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
       return false;
     }
 
-    Date lookFor = getStartOfDayJavaCalendar(timeStamp).getTime();
+    Instant lookFor = getStartOfDayJavaCalendar(timeStamp).toInstant();
 
     return !(dates.contains(lookFor));
   }
@@ -96,36 +96,32 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
 
     // Get timestamp for 00:00:00
     java.util.Calendar day = getStartOfDayJavaCalendar(timeStamp);
-    while (!isTimeIncluded(day.getTime().getTime())) {
+    while (!isTimeIncluded(day.getTimeInMillis())) {
       day.add(java.util.Calendar.DATE, 1);
     }
 
-    return day.getTime().getTime();
+    return day.getTimeInMillis();
   }
 
   /**
    * Add the given Date to the list of excluded days. Only the month, day and year of the returned
    * dates are significant.
    */
-  public void addExcludedDate(Date excludedDate) {
-    Date date = getStartOfDayJavaCalendar(excludedDate.getTime()).getTime();
-    /*
-     * System.err.println( "HolidayCalendar.add(): date=" +
-     * excludedDate.toLocaleString());
-     */
+  public void addExcludedDate(Instant excludedDate) {
+    Instant date = getStartOfDayJavaCalendar(excludedDate.toEpochMilli()).toInstant();
     this.dates.add(date);
   }
 
-  public void removeExcludedDate(Date dateToRemove) {
-    Date date = getStartOfDayJavaCalendar(dateToRemove.getTime()).getTime();
+  public void removeExcludedDate(Instant dateToRemove) {
+    Instant date = getStartOfDayJavaCalendar(dateToRemove.toEpochMilli()).toInstant();
     dates.remove(date);
   }
 
   /**
-   * Returns a <code>SortedSet</code> of Dates representing the excluded days. Only the month, day
-   * and year of the returned dates are significant.
+   * Returns a <code>SortedSet</code> of instants representing the excluded days. Only the month,
+   * day and year of the returned values are significant.
    */
-  public SortedSet<Date> getExcludedDates() {
+  public SortedSet<Instant> getExcludedDates() {
     return Collections.unmodifiableSortedSet(dates);
   }
 }

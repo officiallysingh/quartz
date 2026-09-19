@@ -20,6 +20,7 @@ package org.quartz.core;
 
 import static org.quartz.TriggerBuilder.*;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -120,6 +121,7 @@ public class QuartzScheduler {
 
   private volatile boolean closed = false;
   private volatile boolean shuttingDown = false;
+  private volatile Thread delayedStartThread;
 
   private Instant initialStart = null;
 
@@ -136,8 +138,7 @@ public class QuartzScheduler {
    *
    * @see QuartzSchedulerResources
    */
-  public QuartzScheduler(
-      QuartzSchedulerResources resources, long idleWaitTime, @Deprecated long dbRetryInterval)
+  public QuartzScheduler(QuartzSchedulerResources resources, Duration idleWaitTime)
       throws SchedulerException {
     this.resources = resources;
     if (resources.getJobStore() instanceof JobListener) {
@@ -147,7 +148,7 @@ public class QuartzScheduler {
     this.schedThread = new QuartzSchedulerThread(this, resources);
     ThreadExecutor schedThreadExecutor = resources.getThreadExecutor();
     schedThreadExecutor.execute(this.schedThread);
-    if (idleWaitTime > 0) {
+    if (idleWaitTime != null && !idleWaitTime.isZero() && !idleWaitTime.isNegative()) {
       this.schedThread.setIdleWaitTime(idleWaitTime);
     }
 
@@ -280,25 +281,43 @@ public class QuartzScheduler {
     notifySchedulerListenersStarted();
   }
 
-  public void startDelayed(final int seconds) throws SchedulerException {
+  public void startDelayed(Duration delay) throws SchedulerException {
+    if (delay == null || delay.isNegative()) {
+      throw new SchedulerException("startDelayed delay must be zero or positive.");
+    }
     if (shuttingDown || closed) {
       throw new SchedulerException(
           "The Scheduler cannot be restarted after shutdown() has been called.");
     }
+    if (delay.isZero()) {
+      start();
+      return;
+    }
 
+    Thread previous = delayedStartThread;
+    if (previous != null) {
+      previous.interrupt();
+    }
     Thread t =
         new Thread(
             () -> {
               try {
-                Thread.sleep(seconds * 1000L);
+                Thread.sleep(delay.toMillis());
               } catch (InterruptedException ignore) {
+                return;
+              }
+              if (shuttingDown || closed) {
+                return;
               }
               try {
                 start();
               } catch (SchedulerException se) {
                 getLog().error("Unable to start scheduler after startup delay.", se);
               }
-            });
+            },
+            "QuartzSchedulerStartDelayed_" + resources.getName());
+    t.setDaemon(true);
+    delayedStartThread = t;
     t.start();
   }
 
@@ -376,6 +395,11 @@ public class QuartzScheduler {
     }
 
     shuttingDown = true;
+    Thread delayed = delayedStartThread;
+    if (delayed != null) {
+      delayed.interrupt();
+      delayedStartThread = null;
+    }
 
     getLog().info("Scheduler {} shutting down.", resources.getUniqueIdentifier());
 

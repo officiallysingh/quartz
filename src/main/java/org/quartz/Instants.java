@@ -2,7 +2,6 @@ package org.quartz;
 
 import java.time.Instant;
 import java.util.Calendar;
-import java.util.Date;
 
 /** Bridges remaining {@link Calendar} usage to {@link Instant}. */
 public final class Instants {
@@ -33,13 +32,5 @@ public final class Instants {
 
   public static Instant plusMillis(Instant instant, long millis) {
     return instant == null ? null : instant.plusMillis(millis);
-  }
-
-  public static Date toDate(Instant instant) {
-    return instant == null ? null : Date.from(instant);
-  }
-
-  public static Instant fromDate(Date date) {
-    return date == null ? null : date.toInstant();
   }
 }

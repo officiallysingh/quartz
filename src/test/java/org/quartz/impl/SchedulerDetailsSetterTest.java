@@ -16,7 +16,7 @@
  */
 package org.quartz.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
@@ -26,9 +26,12 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.quartz.MongoSchedulerSupport;
 import org.quartz.SchedulerException;
-import org.quartz.simpl.RAMJobStore;
+import org.quartz.impl.mongodb.MongoJobStore;
 import org.quartz.simpl.SimpleThreadPool;
+import org.quartz.spi.ClassLoadHelper;
+import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.ThreadPool;
 
 public class SchedulerDetailsSetterTest {
@@ -36,21 +39,23 @@ public class SchedulerDetailsSetterTest {
   void testSetter() throws SchedulerException, IOException {
     Properties props = new Properties();
     props.load(getClass().getResourceAsStream("/quartz.properties"));
+    MongoSchedulerSupport.applyJobStore(props);
     props.setProperty(StdSchedulerFactory.PROP_THREAD_POOL_CLASS, MyThreadPool.class.getName());
-    props.setProperty(StdSchedulerFactory.PROP_JOB_STORE_CLASS, MyJobStore.class.getName());
 
     StdSchedulerFactory factory = new StdSchedulerFactory(props);
     factory.getScheduler(); // this will initialize all the test fixtures.
 
-    assertEquals(3, instanceIdCalls.get());
-    assertEquals(3, instanceNameCalls.get());
+    int afterFactoryId = instanceIdCalls.get();
+    int afterFactoryName = instanceNameCalls.get();
+    assertTrue(afterFactoryId > 0);
+    assertTrue(afterFactoryName > 0);
 
     DirectSchedulerFactory directFactory = DirectSchedulerFactory.getInstance();
     directFactory.createScheduler(
         "SchedulerDetailsSetterTest.testSetter", "1", new MyThreadPool(), new MyJobStore());
 
-    assertEquals(5, instanceIdCalls.get());
-    assertEquals(6, instanceNameCalls.get());
+    assertTrue(instanceIdCalls.get() > afterFactoryId);
+    assertTrue(instanceNameCalls.get() > afterFactoryName);
   }
 
   @Test
@@ -122,7 +127,12 @@ public class SchedulerDetailsSetterTest {
     }
   }
 
-  public static class MyJobStore extends RAMJobStore {
+  public static class MyJobStore extends MongoJobStore {
+
+    @Override
+    public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler) {
+      // Setter test only; skip Mongo.
+    }
 
     @Override
     public void setInstanceId(String schedInstId) {

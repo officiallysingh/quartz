@@ -58,7 +58,7 @@ import org.quartz.spi.MutableTrigger;
  */
 public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
 
-  private long interval = 0;
+  private Duration interval = Duration.ZERO;
   private int repeatCount = 0;
   private int misfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_SMART_POLICY;
 
@@ -258,7 +258,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
    * @see #withRepeatCount(int)
    */
   public SimpleScheduleBuilder withIntervalInMilliseconds(long intervalInMillis) {
-    this.interval = intervalInMillis;
+    this.interval = Duration.ofMillis(intervalInMillis);
     return this;
   }
 
@@ -279,7 +279,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
     if (duration.isNegative()) {
       throw new IllegalArgumentException("Duration must not be negative.");
     }
-    this.interval = duration.toMillis();
+    this.interval = duration;
     return this;
   }
 
@@ -293,7 +293,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
    * @see #withRepeatCount(int)
    */
   public SimpleScheduleBuilder withIntervalInSeconds(int intervalInSeconds) {
-    this.interval = intervalInSeconds * 1000L;
+    this.interval = Duration.ofSeconds(intervalInSeconds);
     return this;
   }
 
@@ -307,7 +307,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
    * @see #withRepeatCount(int)
    */
   public SimpleScheduleBuilder withIntervalInMinutes(int intervalInMinutes) {
-    this.interval = intervalInMinutes * DateBuilder.MILLISECONDS_IN_MINUTE;
+    this.interval = Duration.ofMinutes(intervalInMinutes);
     return this;
   }
 
@@ -321,7 +321,7 @@ public class SimpleScheduleBuilder extends ScheduleBuilder<SimpleTrigger> {
    * @see #withRepeatCount(int)
    */
   public SimpleScheduleBuilder withIntervalInHours(int intervalInHours) {
-    this.interval = intervalInHours * DateBuilder.MILLISECONDS_IN_HOUR;
+    this.interval = Duration.ofHours(intervalInHours);
     return this;
   }
 

@@ -18,8 +18,9 @@
 package org.quartz;
 
 import java.io.Serializable;
-import java.util.Calendar;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.TimeZone;
 
 /**
@@ -165,68 +166,50 @@ public class TimeOfDay implements Serializable {
   }
 
   /**
-   * Return a date with time of day reset to this object values. The millisecond value will be zero.
+   * Return an instant with the time of day reset to this object's values. The millisecond value
+   * will be zero.
    */
-  public Date getTimeOfDayForDate(Date dateTime) {
-    if (dateTime == null) return null;
-    Calendar cal = Calendar.getInstance();
-    cal.setTime(dateTime);
-    cal.set(Calendar.HOUR_OF_DAY, hour);
-    cal.set(Calendar.MINUTE, minute);
-    cal.set(Calendar.SECOND, second);
-    cal.clear(Calendar.MILLISECOND);
-    return cal.getTime();
+  public Instant getTimeOfDayForDate(Instant dateTime) {
+    if (dateTime == null) {
+      return null;
+    }
+    return dateTime
+        .atZone(ZoneId.systemDefault())
+        .withHour(hour)
+        .withMinute(minute)
+        .withSecond(second)
+        .withNano(0)
+        .toInstant();
   }
 
-  /**
-   * Create a TimeOfDay from the given date, in the system default TimeZone.
-   *
-   * @param dateTime The java.util.Date from which to extract Hour, Minute and Second.
-   */
-  public static TimeOfDay hourAndMinuteAndSecondFromDate(Date dateTime) {
+  /** Create a TimeOfDay from the given instant, in the system default time zone. */
+  public static TimeOfDay hourAndMinuteAndSecondFromDate(Instant dateTime) {
     return hourAndMinuteAndSecondFromDate(dateTime, null);
   }
 
-  /**
-   * Create a TimeOfDay from the given date, in the given TimeZone.
-   *
-   * @param dateTime The java.util.Date from which to extract Hour, Minute and Second.
-   * @param tz The TimeZone from which relate Hour, Minute and Second for the given date. If null,
-   *     system default TimeZone will be used.
-   */
-  public static TimeOfDay hourAndMinuteAndSecondFromDate(Date dateTime, TimeZone tz) {
-    if (dateTime == null) return null;
-    Calendar cal = Calendar.getInstance();
-    cal.setTime(dateTime);
-    if (tz != null) cal.setTimeZone(tz);
-
-    return new TimeOfDay(
-        cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
+  /** Create a TimeOfDay from the given instant, in the given time zone. */
+  public static TimeOfDay hourAndMinuteAndSecondFromDate(Instant dateTime, TimeZone tz) {
+    if (dateTime == null) {
+      return null;
+    }
+    ZoneId zone = tz == null ? ZoneId.systemDefault() : tz.toZoneId();
+    ZonedDateTime zdt = dateTime.atZone(zone);
+    return new TimeOfDay(zdt.getHour(), zdt.getMinute(), zdt.getSecond());
   }
 
-  /**
-   * Create a TimeOfDay from the given date (at the zero-second), in the system default TimeZone.
-   *
-   * @param dateTime The java.util.Date from which to extract Hour and Minute.
-   */
-  public static TimeOfDay hourAndMinuteFromDate(Date dateTime) {
+  /** Create a TimeOfDay from the given instant (at the zero-second), in the system default zone. */
+  public static TimeOfDay hourAndMinuteFromDate(Instant dateTime) {
     return hourAndMinuteFromDate(dateTime, null);
   }
 
-  /**
-   * Create a TimeOfDay from the given date (at the zero-second), in the system default TimeZone.
-   *
-   * @param dateTime The java.util.Date from which to extract Hour and Minute.
-   * @param tz The TimeZone from which relate Hour and Minute for the given date. If null, system
-   *     default TimeZone will be used.
-   */
-  public static TimeOfDay hourAndMinuteFromDate(Date dateTime, TimeZone tz) {
-    if (dateTime == null) return null;
-    Calendar cal = Calendar.getInstance();
-    cal.setTime(dateTime);
-    if (tz != null) cal.setTimeZone(tz);
-
-    return new TimeOfDay(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE));
+  /** Create a TimeOfDay from the given instant (at the zero-second), in the given time zone. */
+  public static TimeOfDay hourAndMinuteFromDate(Instant dateTime, TimeZone tz) {
+    if (dateTime == null) {
+      return null;
+    }
+    ZoneId zone = tz == null ? ZoneId.systemDefault() : tz.toZoneId();
+    ZonedDateTime zdt = dateTime.atZone(zone);
+    return new TimeOfDay(zdt.getHour(), zdt.getMinute());
   }
 
   @Override

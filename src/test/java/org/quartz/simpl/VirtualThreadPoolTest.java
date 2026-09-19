@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.MongoSchedulerSupport;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerConfigException;
 import org.quartz.impl.StdSchedulerFactory;
@@ -91,7 +92,7 @@ class VirtualThreadPoolTest {
     config.setProperty("org.quartz.scheduler.instanceName", "VirtualThreadScheduler");
     config.setProperty("org.quartz.threadPool.class", VirtualThreadPool.class.getName());
     config.setProperty("org.quartz.threadPool.threadCount", "4");
-    config.setProperty("org.quartz.jobStore.class", RAMJobStore.class.getName());
+    MongoSchedulerSupport.applyJobStore(config);
 
     AtomicReference<Boolean> virtual = new AtomicReference<>();
     CountDownLatch done = new CountDownLatch(1);
@@ -120,7 +121,7 @@ class VirtualThreadPoolTest {
     config.setProperty("org.quartz.threadPool.threadPriority", "5");
     config.setProperty("org.quartz.threadPool.makeThreadsDaemons", "true");
     config.setProperty("org.quartz.threadPool.threadsInheritGroupOfInitializingThread", "true");
-    config.setProperty("org.quartz.jobStore.class", RAMJobStore.class.getName());
+    MongoSchedulerSupport.applyJobStore(config);
 
     Scheduler scheduler = new StdSchedulerFactory(config).getScheduler();
     try {

@@ -18,6 +18,7 @@
 
 package org.quartz.impl;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -129,8 +130,8 @@ public class StdScheduler implements Scheduler {
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */
-  public void startDelayed(int seconds) throws SchedulerException {
-    sched.startDelayed(seconds);
+  public void startDelayed(Duration delay) throws SchedulerException {
+    sched.startDelayed(delay);
   }
 
   /** Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>. */

@@ -18,6 +18,7 @@
 
 package org.quartz.core;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.quartz.spi.JobStore;
@@ -62,7 +63,7 @@ public class QuartzSchedulerResources {
 
   private ThreadExecutor threadExecutor;
 
-  private long batchTimeWindow = 0;
+  private Duration batchTimeWindow = Duration.ZERO;
 
   private int maxBatchSize = 1;
 
@@ -279,12 +280,12 @@ public class QuartzSchedulerResources {
     this.threadExecutor = threadExecutor;
   }
 
-  public long getBatchTimeWindow() {
+  public Duration getBatchTimeWindow() {
     return batchTimeWindow;
   }
 
-  public void setBatchTimeWindow(long batchTimeWindow) {
-    this.batchTimeWindow = batchTimeWindow;
+  public void setBatchTimeWindow(Duration batchTimeWindow) {
+    this.batchTimeWindow = batchTimeWindow == null ? Duration.ZERO : batchTimeWindow;
   }
 
   public int getMaxBatchSize() {

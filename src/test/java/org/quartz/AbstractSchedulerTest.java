@@ -36,9 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.quartz.Trigger.TriggerState;
 import org.quartz.impl.matchers.GroupMatcher;
 
-/**
- * Test High Level Scheduler functionality (implicitly tests the underlying jobstore (RAMJobStore))
- */
+/** Test High Level Scheduler functionality (implicitly tests the underlying Mongo job store) */
 public abstract class AbstractSchedulerTest {
 
   private static final String BARRIER = "BARRIER";

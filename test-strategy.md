@@ -1,6 +1,6 @@
 # Test Strategy: Quartz Fork Parity (vs Official Quartz)
 
-This document is a **black-box / integration test strategy** for confirming that this fork (`quartz-scheduler` with Instant APIs, RAM + Mongo, in-tree Spring Boot auto-config) behaves like **official Quartz** for scheduling semantics, APIs, and lifecycle — **except persistence** (Mongo replaces JDBC; collection/schema shape is different by design).
+This document is a **black-box / integration test strategy** for confirming that this fork (`quartz-scheduler` with Instant APIs, Mongo job store, in-tree Spring Boot auto-config) behaves like **official Quartz** for scheduling semantics, APIs, and lifecycle — **except persistence** (Mongo replaces JDBC; collection/schema shape is different by design). RAM / in-memory job store is not supported.
 
 Use it against a **Spring Boot app** that depends on this jar and has **removed** `org.quartz-scheduler:quartz` and `spring-boot-starter-quartz`.
 
@@ -51,13 +51,13 @@ Run the same scenario packs against:
 
 | Env | Job store | Cluster | Thread pool | Purpose |
 |---|---|---|---|---|
-| A | `MEMORY` (RAM) | No | Simple | Fast functional parity |
-| B | `MEMORY` | No | Virtual (`quartz.scheduler.thread-pool.virtual=true`) | VT pool parity |
+| A | `MONGODB` (standalone) | No | Simple | Fast functional parity |
+| B | `MONGODB` (standalone) | No | Virtual (`quartz.scheduler.thread-pool.virtual=true`) | VT pool parity |
 | C | `MONGODB` (standalone) | `clustered=false` | Simple | Persistence across restart |
 | D | `MONGODB` replica set | `clustered=true`, 2+ app instances | Simple | Cluster / failover |
-| E | Spring Boot auto-config (`AUTO`) | As configured | Both | Boot bean registration + DI jobs |
+| E | Spring Boot auto-config (app `MongoClient`) | As configured | Both | Boot bean registration + DI jobs |
 
-**Baseline for “works like original”:** Env A should match official Quartz RAM semantics. Env C/D replace JDBC persistence tests with Mongo behavioral equivalents.
+**Baseline for “works like original”:** Env A/B cover scheduling semantics on Mongo. Env C/D replace JDBC persistence tests with Mongo behavioral equivalents.
 
 **Infrastructure requirements:**
 
@@ -131,9 +131,9 @@ Official Quartz apps build schedules many ways. Exercise **all** construction pa
 | SB-05 | `overwrite-existing-jobs=true` vs `false` | Reschedule vs leave existing (Mongo Env C especially) |
 | SB-06 | Job class extending nothing / implementing `Job` with constructor DI | Autowired dependencies non-null |
 | SB-07 | `QuartzSchedulerCustomizer` bean | Customizations applied before start |
-| SB-08 | `quartz.scheduler.properties` map overlay (`org.quartz.*`) | Overrides win as documented |
+| SB-08 | `quartz.scheduler.properties` map overlay (`org.quartz.*`) | Applied first; typed Duration fields win |
 | SB-09 | `quartz.scheduler.enabled=false` | No scheduler bean / no scheduling |
-| SB-10 | `job-store-type`: `AUTO`, `MEMORY`, `MONGODB` | Correct store class; AUTO picks Mongo when URI present |
+| SB-10 | No `MongoClient` bean | Auto-config does not create a scheduler |
 
 ### 4.5 Factory paths (non-Boot or hybrid)
 
@@ -241,7 +241,7 @@ For **each** trigger type, cover: create → schedule → fire → query next/pr
 | JOB-03 | `@PersistJobDataAfterExecution` | Mutated JobDataMap persisted for next fire (Mongo: after restart in Env C) |
 | JOB-04 | Both annotations together (and deprecated `StatefulJob`) | Combined semantics |
 | JOB-05 | Durable job with no triggers survives restart (Env C) | Still in store |
-| JOB-06 | Non-durable job without triggers | Not retained after complete (RAM + Mongo rules) |
+| JOB-06 | Non-durable job without triggers | Not retained after complete |
 | JOB-07 | `requestRecovery=true` + kill mid-execution (Env C/D) | Recovering execution after restart/failover |
 | JOB-08 | `InterruptableJob` + `scheduler.interrupt(JobKey)` / `interrupt(fireInstanceId)` | `interrupt()` called; `UnableToInterruptJobException` path |
 | JOB-09 | Job throws `JobExecutionException` with refire / unschedule flags | Flags honored |
@@ -391,8 +391,6 @@ Parity target: **same operational semantics as JDBC clustered Quartz**, not same
 | CL-09 | Locks + `scheduler_state` collections populated | Presence OK; don’t require JDBC shape |
 | CL-10 | Hostname / `SimpleInstanceIdGenerator` / system-property generator | Instance ID sources |
 
-**RAM store:** assert `isClustered()==false`; clustering properties ignored / ineffective (CL-NEG).
-
 ---
 
 ## 14. Persistence (Mongo) — behavioral only
@@ -405,8 +403,8 @@ Parity target: **same operational semantics as JDBC clustered Quartz**, not same
 | PS-04 | `@PersistJobDataAfterExecution` survives restart |
 | PS-05 | `overwrite-existing-jobs` on Boot restart |
 | PS-06 | Custom `collection-prefix` isolation between apps |
-| PS-07 | `SpringMongoJobStore` uses Boot `MongoClient` (no extra client leak) |
-| PS-08 | Bad URI / auth failure → clear startup error |
+| PS-07 | `MongoJobStore` uses Boot `MongoClient` (does not close it) |
+| PS-08 | Missing `MongoClient` bean → auto-config does not start a scheduler |
 | PS-09 | Large JobDataMap / many jobs (scale smoke) |
 | PS-10 | Serialize all trigger types to Mongo and reload next fire Instant correctly |
 

@@ -189,6 +189,6 @@ public class MonthlyCalendar extends BaseCalendar implements Calendar, Serializa
       day = cl.get(java.util.Calendar.DAY_OF_MONTH);
     }
 
-    return cl.getTime().getTime();
+    return cl.getTimeInMillis();
   }
 }

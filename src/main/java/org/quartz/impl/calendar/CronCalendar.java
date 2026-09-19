@@ -1,7 +1,7 @@
 package org.quartz.impl.calendar;
 
 import java.text.ParseException;
-import java.util.Date;
+import java.time.Instant;
 import java.util.TimeZone;
 import org.quartz.Calendar;
 import org.quartz.CronExpression;
@@ -113,7 +113,7 @@ public class CronCalendar extends BaseCalendar {
       return false;
     }
 
-    return (!(cronExpression.isSatisfiedBy(new Date(timeInMillis))));
+    return (!(cronExpression.isSatisfiedBy(Instant.ofEpochMilli(timeInMillis))));
   }
 
   /**
@@ -134,9 +134,11 @@ public class CronCalendar extends BaseCalendar {
       // baseCalendar, ask it the next time it includes and begin testing
       // from there. Failing this, add one millisecond and continue
       // testing.
-      if (cronExpression.isSatisfiedBy(new Date(nextIncludedTime))) {
+      if (cronExpression.isSatisfiedBy(Instant.ofEpochMilli(nextIncludedTime))) {
         nextIncludedTime =
-            cronExpression.getNextInvalidTimeAfter(new Date(nextIncludedTime)).getTime();
+            cronExpression
+                .getNextInvalidTimeAfter(Instant.ofEpochMilli(nextIncludedTime))
+                .toEpochMilli();
       } else if ((getBaseCalendar() != null)
           && (!getBaseCalendar().isTimeIncluded(nextIncludedTime))) {
         nextIncludedTime = getBaseCalendar().getNextIncludedTime(nextIncludedTime);

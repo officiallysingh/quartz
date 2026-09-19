@@ -18,7 +18,7 @@ class JavaTimeScheduleBuilderTest {
     SimpleTrigger trigger =
         newTrigger().withSchedule(simpleSchedule().withInterval(Duration.ofMinutes(5))).build();
 
-    assertEquals(5 * 60 * 1000L, trigger.getRepeatInterval());
+    assertEquals(Duration.ofMinutes(5), trigger.getRepeatInterval());
   }
 
   @Test
