@@ -137,6 +137,11 @@ class QuartzPropertiesDefaultsTest {
   }
 
   @Test
+  void failFastOnStartDefaultsToTrue() {
+    assertEquals(true, new QuartzProperties().isFailFastOnStart());
+  }
+
+  @Test
   void clusteredAndCheckinIntervalAreSchedulerLevel() {
     QuartzProperties properties = new QuartzProperties();
     properties.setClustered(true);

@@ -26,6 +26,7 @@ import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.quartz.AbstractJobStoreTest;
 import org.quartz.Calendar;
+import org.quartz.DisallowConcurrentExecution;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobPersistenceException;
@@ -35,6 +36,7 @@ import org.quartz.impl.calendar.DailyCalendar;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
+import org.quartz.spi.TriggerFiredResult;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -391,6 +393,353 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
     }
   }
 
+  @Test
+  void acquireSkipsBlockedJobs() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("skipBlocked");
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(ExclusiveJob.class).withIdentity("blocked-job", "g").build();
+      OperableTrigger trigger = readyTrigger("blocked-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      store
+          .getMongoClient()
+          .getDatabase(store.getDbName())
+          .getCollection("qrtz_jobs")
+          .updateOne(Filters.eq("name", "blocked-job"), Updates.set("blocked", true));
+      assertTrue(store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0).isEmpty());
+    } finally {
+      destroyJobStore("skipBlocked");
+    }
+  }
+
+  @Test
+  void missingCalendarMovesTriggerToError() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("missingCal");
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(MyJob.class).withIdentity("cal-job", "g").build();
+      OperableTrigger trigger =
+          (OperableTrigger)
+              newTrigger()
+                  .withIdentity("cal-trig", "g")
+                  .forJob(job)
+                  .startAt(start)
+                  .modifiedByCalendar("missing")
+                  .withSchedule(SimpleScheduleBuilder.repeatSecondlyForever())
+                  .build();
+      trigger.computeFirstFireTime(null);
+      store.storeJobAndTrigger(job, trigger);
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0);
+      assertEquals(1, acquired.size());
+      List<TriggerFiredResult> fired = store.triggersFired(acquired);
+      assertEquals(1, fired.size());
+      assertNull(fired.get(0).getTriggerFiredBundle());
+      assertEquals(Trigger.TriggerState.ERROR, store.getTriggerState(trigger.getKey()));
+    } finally {
+      destroyJobStore("missingCal");
+    }
+  }
+
+  @Test
+  void ownerMismatchDoesNotFireOrRelease() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("ownerGuard");
+    store.setInstanceId("node-a");
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(MyJob.class).withIdentity("own-job", "g").build();
+      OperableTrigger trigger = readyTrigger("own-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0);
+      assertEquals(1, acquired.size());
+      store
+          .getMongoClient()
+          .getDatabase(store.getDbName())
+          .getCollection("qrtz_triggers")
+          .updateOne(Filters.eq("name", "own-trig"), Updates.set("leaseOwner", "node-b"));
+      List<TriggerFiredResult> fired = store.triggersFired(acquired);
+      assertNull(fired.get(0).getTriggerFiredBundle());
+      assertEquals(
+          "ACQUIRED",
+          store
+              .getMongoClient()
+              .getDatabase(store.getDbName())
+              .getCollection("qrtz_triggers")
+              .find(Filters.eq("name", "own-trig"))
+              .first()
+              .getString("state"));
+      store.releaseAcquiredTrigger(acquired.get(0));
+      assertEquals(
+          "ACQUIRED",
+          store
+              .getMongoClient()
+              .getDatabase(store.getDbName())
+              .getCollection("qrtz_triggers")
+              .find(Filters.eq("name", "own-trig"))
+              .first()
+              .getString("state"));
+    } finally {
+      destroyJobStore("ownerGuard");
+    }
+  }
+
+  @Test
+  void completeFromOtherInstanceDoesNotUnblock() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("completeOwner");
+    store.setInstanceId("node-a");
+    store.initialize(new SampleSignaler());
+    MongoJobStore other = null;
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(ExclusiveJob.class).withIdentity("ex-job", "g").build();
+      OperableTrigger trigger = readyTrigger("ex-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0);
+      store.triggersFired(acquired);
+
+      other = new MongoJobStore();
+      other.setMongoUri(mongo.getConnectionString());
+      other.setDbName(store.getDbName());
+      other.setCollectionPrefix("qrtz_");
+      other.setInstanceName("completeOwner");
+      other.setInstanceId("node-b");
+      other.initialize(new SampleSignaler());
+      other.triggeredJobComplete(acquired.get(0), job, Trigger.CompletedExecutionInstruction.NOOP);
+
+      Document jobRow =
+          store
+              .getMongoClient()
+              .getDatabase(store.getDbName())
+              .getCollection("qrtz_jobs")
+              .find(Filters.eq("name", "ex-job"))
+              .first();
+      assertTrue(Boolean.TRUE.equals(jobRow.getBoolean("blocked")));
+      assertEquals("node-a", jobRow.getString("blockedBy"));
+
+      store.triggeredJobComplete(acquired.get(0), job, Trigger.CompletedExecutionInstruction.NOOP);
+      jobRow =
+          store
+              .getMongoClient()
+              .getDatabase(store.getDbName())
+              .getCollection("qrtz_jobs")
+              .find(Filters.eq("name", "ex-job"))
+              .first();
+      assertFalse(Boolean.TRUE.equals(jobRow.getBoolean("blocked")));
+    } finally {
+      if (other != null) {
+        other.shutdown();
+      }
+      destroyJobStore("completeOwner");
+    }
+  }
+
+  @Test
+  void nonClusteredStartDoesNotResetOtherOwnersAcquired() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("nonClusterOwner");
+    store.setClustered(false);
+    store.setInstanceId("node-a");
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(MyJob.class).withIdentity("nc-job", "g").build();
+      OperableTrigger trigger = readyTrigger("nc-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      assertEquals(1, store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0).size());
+      store
+          .getMongoClient()
+          .getDatabase(store.getDbName())
+          .getCollection("qrtz_triggers")
+          .updateOne(Filters.eq("name", "nc-trig"), Updates.set("leaseOwner", "node-b"));
+      store.schedulerStarted();
+      assertEquals(
+          "ACQUIRED",
+          store
+              .getMongoClient()
+              .getDatabase(store.getDbName())
+              .getCollection("qrtz_triggers")
+              .find(Filters.eq("name", "nc-trig"))
+              .first()
+              .getString("state"));
+    } finally {
+      destroyJobStore("nonClusterOwner");
+    }
+  }
+
+  @Test
+  void recoversOrphanedBlockedJobsOnStart() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("orphanBlocked");
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(ExclusiveJob.class).withIdentity("or-job", "g").build();
+      OperableTrigger trigger = readyTrigger("or-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      store
+          .getMongoClient()
+          .getDatabase(store.getDbName())
+          .getCollection("qrtz_jobs")
+          .updateOne(
+              Filters.eq("name", "or-job"),
+              Updates.combine(Updates.set("blocked", true), Updates.set("blockedBy", "dead-node")));
+      store
+          .getMongoClient()
+          .getDatabase(store.getDbName())
+          .getCollection("qrtz_triggers")
+          .updateOne(Filters.eq("name", "or-trig"), Updates.set("state", "BLOCKED"));
+      store.schedulerStarted();
+      assertEquals(Trigger.TriggerState.NORMAL, store.getTriggerState(trigger.getKey()));
+      assertFalse(
+          Boolean.TRUE.equals(
+              store
+                  .getMongoClient()
+                  .getDatabase(store.getDbName())
+                  .getCollection("qrtz_jobs")
+                  .find(Filters.eq("name", "or-job"))
+                  .first()
+                  .getBoolean("blocked")));
+    } finally {
+      destroyJobStore("orphanBlocked");
+    }
+  }
+
+  /**
+   * A running exclusive job has a BLOCKED trigger and no ACQUIRED one, so cluster check-in must not
+   * mistake it for an orphan and strip the flag that enforces @DisallowConcurrentExecution.
+   */
+  @Test
+  void clusterCheckinKeepsRunningExclusiveJobBlocked() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("blockedLive");
+    store.setClustered(true);
+    store.setClusterCheckinInterval(Duration.ofMillis(200));
+    store.setInstanceId("node-a");
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(ExclusiveJob.class).withIdentity("live-job", "g").build();
+      OperableTrigger trigger = readyTrigger("live-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      store.schedulerStarted();
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0);
+      store.triggersFired(acquired);
+
+      Thread.sleep(1_000L);
+
+      Document jobRow =
+          store
+              .getMongoClient()
+              .getDatabase(store.getDbName())
+              .getCollection("qrtz_jobs")
+              .find(Filters.eq("name", "live-job"))
+              .first();
+      assertTrue(Boolean.TRUE.equals(jobRow.getBoolean("blocked")));
+      assertEquals("node-a", jobRow.getString("blockedBy"));
+      assertEquals(Trigger.TriggerState.BLOCKED, store.getTriggerState(trigger.getKey()));
+    } finally {
+      destroyJobStore("blockedLive");
+    }
+  }
+
+  @Test
+  void clusteredLockTimeoutOnCompleteDoesNotThrowAndRecovers() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("completeLock");
+    store.setClustered(true);
+    store.setClusterLockWait(Duration.ofMillis(200));
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(ExclusiveJob.class).withIdentity("cl-job", "g").build();
+      OperableTrigger trigger = readyTrigger("cl-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0);
+      store.triggersFired(acquired);
+      holdClusterLock(store, "completeLock", Instant.now().plusSeconds(60));
+      assertDoesNotThrow(
+          () ->
+              store.triggeredJobComplete(
+                  acquired.get(0), job, Trigger.CompletedExecutionInstruction.NOOP));
+      assertTrue(
+          Boolean.TRUE.equals(
+              store
+                  .getMongoClient()
+                  .getDatabase(store.getDbName())
+                  .getCollection("qrtz_jobs")
+                  .find(Filters.eq("name", "cl-job"))
+                  .first()
+                  .getBoolean("blocked")));
+      holdClusterLock(store, "completeLock", Instant.now().minusSeconds(1));
+      store.schedulerStarted();
+      assertFalse(
+          Boolean.TRUE.equals(
+              store
+                  .getMongoClient()
+                  .getDatabase(store.getDbName())
+                  .getCollection("qrtz_jobs")
+                  .find(Filters.eq("name", "cl-job"))
+                  .first()
+                  .getBoolean("blocked")));
+    } finally {
+      destroyJobStore("completeLock");
+    }
+  }
+
+  @Test
+  void lockHeartbeatRenewsExpiresWhileHoldingLock() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("lockBeat");
+    store.setClustered(true);
+    store.setClusterCheckinInterval(Duration.ofSeconds(1));
+    store.initialize(new SampleSignaler());
+    try {
+      Instant[] before = new Instant[1];
+      Instant[] after = new Instant[1];
+      Thread reader =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      Thread.sleep(200L);
+                      before[0] = lockInstant(store, "lockBeat");
+                      Thread.sleep(900L);
+                      after[0] = lockInstant(store, "lockBeat");
+                    } catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                    }
+                  });
+      store.runLocked(Duration.ofMillis(1600));
+      reader.join(3_000L);
+      assertTrue(before[0] != null && after[0] != null);
+      assertTrue(after[0].isAfter(before[0]), before[0] + " then " + after[0]);
+    } finally {
+      destroyJobStore("lockBeat");
+    }
+  }
+
+  private static Instant lockInstant(MongoJobStore store, String schedName) {
+    Document lock =
+        store
+            .getMongoClient()
+            .getDatabase(store.getDbName())
+            .getCollection("qrtz_locks")
+            .find(
+                Filters.and(
+                    Filters.eq("schedName", schedName), Filters.eq("lockName", "TRIGGER_ACCESS")))
+            .first();
+    Object raw = lock.get("expires");
+    if (raw instanceof Instant instant) {
+      return instant;
+    }
+    if (raw instanceof Date date) {
+      return date.toInstant();
+    }
+    return Instant.parse(raw.toString());
+  }
+
   private static void holdClusterLock(MongoJobStore store, String schedName, Instant expires) {
     store
         .getMongoClient()
@@ -561,6 +910,9 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
       destroyJobStore("badTrigger");
     }
   }
+
+  @DisallowConcurrentExecution
+  public static class ExclusiveJob extends MyJob {}
 
   enum SampleColor {
     RED

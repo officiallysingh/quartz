@@ -140,6 +140,8 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
   public void run() {
     qs.addInternalSchedulerListener(this);
 
+    boolean storeNotified = false;
+    CompletedExecutionInstruction pendingInstruction = CompletedExecutionInstruction.NOOP;
     try {
       OperableTrigger trigger = (OperableTrigger) jec.getTrigger();
       JobDetail jobDetail = jec.getJobDetail();
@@ -167,6 +169,7 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
           try {
             CompletedExecutionInstruction instCode = trigger.executionComplete(jec, null);
             qs.notifyJobStoreJobVetoed(trigger, jobDetail, instCode);
+            storeNotified = true;
 
             // QTZ-205
             // Even if trigger got vetoed, we still needs to check to see if it's the trigger's
@@ -219,12 +222,15 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
         // update the trigger
         try {
           instCode = trigger.executionComplete(jec, jobExEx);
+          pendingInstruction = instCode;
         } catch (Exception e) {
           // If this happens, there's a bug in the trigger...
           SchedulerException se =
               new SchedulerException("Trigger threw an unhandled exception.", e);
           qs.notifySchedulerListenersError(
               "Please report this error to the Quartz developers.", se);
+          pendingInstruction = CompletedExecutionInstruction.SET_ALL_JOB_TRIGGERS_ERROR;
+          break;
         }
 
         // notify all trigger listeners
@@ -259,10 +265,23 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
         }
 
         qs.notifyJobStoreJobComplete(trigger, jobDetail, instCode);
+        storeNotified = true;
         break;
       } while (true);
 
     } finally {
+      try {
+        if (!storeNotified && jec != null) {
+          qs.notifyJobStoreJobComplete(
+              (OperableTrigger) jec.getTrigger(), jec.getJobDetail(), pendingInstruction);
+        }
+      } catch (RuntimeException e) {
+        qs.notifySchedulerListenersError(
+            "Error executing Job ("
+                + jec.getJobDetail().getKey()
+                + ": couldn't finalize execution.",
+            new SchedulerException("Failed to persist trigger completion", e));
+      }
       qs.removeInternalSchedulerListener(this);
       closeJobIfNeeded();
     }

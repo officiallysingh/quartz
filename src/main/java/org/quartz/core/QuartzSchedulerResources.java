@@ -21,6 +21,8 @@ package org.quartz.core;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadPool;
@@ -58,12 +60,12 @@ public class QuartzSchedulerResources {
 
   private boolean makeSchedulerThreadDaemon = false;
 
-  private Duration batchTimeWindow = Duration.ZERO;
+  @Getter private Duration batchTimeWindow = Duration.ZERO;
 
-  private int maxBatchSize = 1;
+  @Getter @Setter private int maxBatchSize = 1;
 
-  private boolean interruptJobsOnShutdown = false;
-  private boolean interruptJobsOnShutdownWithWait = false;
+  @Getter @Setter private boolean interruptJobsOnShutdown = false;
+  @Getter @Setter private boolean interruptJobsOnShutdownWithWait = false;
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -248,35 +250,7 @@ public class QuartzSchedulerResources {
     this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
   }
 
-  public Duration getBatchTimeWindow() {
-    return batchTimeWindow;
-  }
-
   public void setBatchTimeWindow(Duration batchTimeWindow) {
     this.batchTimeWindow = batchTimeWindow == null ? Duration.ZERO : batchTimeWindow;
-  }
-
-  public int getMaxBatchSize() {
-    return maxBatchSize;
-  }
-
-  public void setMaxBatchSize(int maxBatchSize) {
-    this.maxBatchSize = maxBatchSize;
-  }
-
-  public boolean isInterruptJobsOnShutdown() {
-    return interruptJobsOnShutdown;
-  }
-
-  public void setInterruptJobsOnShutdown(boolean interruptJobsOnShutdown) {
-    this.interruptJobsOnShutdown = interruptJobsOnShutdown;
-  }
-
-  public boolean isInterruptJobsOnShutdownWithWait() {
-    return interruptJobsOnShutdownWithWait;
-  }
-
-  public void setInterruptJobsOnShutdownWithWait(boolean interruptJobsOnShutdownWithWait) {
-    this.interruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
   }
 }

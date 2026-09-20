@@ -22,6 +22,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.SchedulerConfigException;
 import org.quartz.spi.ThreadPool;
@@ -71,7 +73,7 @@ public class SimpleThreadPool implements ThreadPool {
   private final LinkedList<WorkerThread> availWorkers = new LinkedList<>();
   private final LinkedList<WorkerThread> busyWorkers = new LinkedList<>();
 
-  private String threadNamePrefix;
+  @Getter @Setter private String threadNamePrefix;
 
   private String schedulerInstanceName;
 
@@ -144,14 +146,6 @@ public class SimpleThreadPool implements ThreadPool {
   /** Get the thread priority of worker threads in the pool. */
   public int getThreadPriority() {
     return prio;
-  }
-
-  public void setThreadNamePrefix(String prefix) {
-    this.threadNamePrefix = prefix;
-  }
-
-  public String getThreadNamePrefix() {
-    return threadNamePrefix;
   }
 
   public boolean isThreadsInheritGroupOfInitializingThread() {

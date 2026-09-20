@@ -62,6 +62,7 @@ public class QuartzAutoConfiguration {
     factoryBean.setStartupDelay(properties.getStartupDelay());
     factoryBean.setWaitForJobsToCompleteOnShutdown(properties.isWaitForJobsToCompleteOnShutdown());
     factoryBean.setOverwriteExistingJobs(properties.isOverwriteExistingJobs());
+    factoryBean.setFailFastOnStart(properties.isFailFastOnStart());
     factoryBean.setMongoClient(mongoClient);
     factoryBean.setMongoDatabase(mongoDatabase);
     factoryBean.setQuartzProperties(buildQuartzProperties(properties, environment, mongoDatabase));

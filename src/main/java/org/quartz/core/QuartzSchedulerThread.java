@@ -211,6 +211,14 @@ public class QuartzSchedulerThread extends Thread {
     }
   }
 
+  private void releaseAcquiredTriggerSafely(OperableTrigger trigger) {
+    try {
+      qsRsrcs.getJobStore().releaseAcquiredTrigger(trigger);
+    } catch (RuntimeException re) {
+      getLog().error("Failed to release acquired trigger {}", trigger.getKey(), re);
+    }
+  }
+
   /** The main processing loop of the <code>QuartzSchedulerThread</code>. */
   @Override
   public void run() {
@@ -346,7 +354,7 @@ public class QuartzSchedulerThread extends Thread {
                 // QTZ-179 : a problem occurred interacting with the triggers from the db
                 // we release them and loop again
                 for (OperableTrigger trigger : triggers) {
-                  qsRsrcs.getJobStore().releaseAcquiredTrigger(trigger);
+                  releaseAcquiredTriggerSafely(trigger);
                 }
                 continue;
               }
@@ -360,7 +368,7 @@ public class QuartzSchedulerThread extends Thread {
               if (exception instanceof RuntimeException) {
                 getLog()
                     .error("RuntimeException while firing trigger {}", triggers.get(i), exception);
-                qsRsrcs.getJobStore().releaseAcquiredTrigger(triggers.get(i));
+                releaseAcquiredTriggerSafely(triggers.get(i));
                 continue;
               }
 
@@ -368,7 +376,7 @@ public class QuartzSchedulerThread extends Thread {
               // blocked, or other similar occurrences that prevent it being
               // fired at this time...  or if the scheduler was shutdown (halted)
               if (bundle == null) {
-                qsRsrcs.getJobStore().releaseAcquiredTrigger(triggers.get(i));
+                releaseAcquiredTriggerSafely(triggers.get(i));
                 continue;
               }
 
@@ -461,7 +469,7 @@ public class QuartzSchedulerThread extends Thread {
     if (isCandidateNewTimeEarlierWithinReason(triggerTime, true)) {
       // above call does a clearSignaledSchedulingChange()
       for (OperableTrigger trigger : triggers) {
-        qsRsrcs.getJobStore().releaseAcquiredTrigger(trigger);
+        releaseAcquiredTriggerSafely(trigger);
       }
       triggers.clear();
       return true;

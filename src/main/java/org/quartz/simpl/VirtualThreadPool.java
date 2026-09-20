@@ -22,6 +22,8 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.SchedulerConfigException;
 import org.quartz.spi.ThreadPool;
@@ -63,7 +65,7 @@ public class VirtualThreadPool implements ThreadPool {
 
   private final AtomicLong threadNumber = new AtomicLong();
 
-  private String threadNamePrefix;
+  @Getter @Setter private String threadNamePrefix;
 
   private String schedulerInstanceName;
 
@@ -87,14 +89,6 @@ public class VirtualThreadPool implements ThreadPool {
 
   public int getThreadCount() {
     return maxConcurrency;
-  }
-
-  public void setThreadNamePrefix(String prefix) {
-    this.threadNamePrefix = prefix;
-  }
-
-  public String getThreadNamePrefix() {
-    return threadNamePrefix;
   }
 
   /**

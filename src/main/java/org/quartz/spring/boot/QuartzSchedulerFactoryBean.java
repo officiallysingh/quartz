@@ -7,6 +7,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.quartz.Calendar;
 import org.quartz.JobDetail;
@@ -26,6 +28,7 @@ import org.springframework.context.SmartLifecycle;
  * Lifecycle wrapper around {@link StdSchedulerFactory}, modeled on Spring's {@code
  * SchedulerFactoryBean} without JDBC / {@code DataSource} support.
  */
+@Slf4j
 public class QuartzSchedulerFactoryBean
     implements FactoryBean<Scheduler>,
         InitializingBean,
@@ -33,24 +36,21 @@ public class QuartzSchedulerFactoryBean
         SmartLifecycle,
         ApplicationContextAware {
 
-  private Properties quartzProperties = new Properties();
+  @Setter private Properties quartzProperties = new Properties();
   private JobDetail[] jobDetails = new JobDetail[0];
   private Trigger[] triggers = new Trigger[0];
   private Map<String, Calendar> calendars = Collections.emptyMap();
-  private boolean autoStartup = true;
+  @Setter private boolean autoStartup = true;
   private Duration startupDelay = Duration.ZERO;
-  private boolean waitForJobsToCompleteOnShutdown = true;
-  private boolean overwriteExistingJobs;
-  private MongoClient mongoClient;
-  private MongoDatabase mongoDatabase;
+  @Setter private boolean waitForJobsToCompleteOnShutdown = true;
+  @Setter private boolean overwriteExistingJobs;
+  @Setter private boolean failFastOnStart = true;
+  @Setter private MongoClient mongoClient;
+  @Setter private MongoDatabase mongoDatabase;
   private ApplicationContext applicationContext;
   private Scheduler scheduler;
   private final AtomicBoolean running = new AtomicBoolean(false);
   private final AtomicBoolean destroyed = new AtomicBoolean(false);
-
-  public void setQuartzProperties(Properties quartzProperties) {
-    this.quartzProperties = quartzProperties;
-  }
 
   public void setJobDetails(JobDetail[] jobDetails) {
     this.jobDetails = jobDetails != null ? jobDetails : new JobDetail[0];
@@ -64,28 +64,8 @@ public class QuartzSchedulerFactoryBean
     this.calendars = calendars != null ? calendars : Collections.emptyMap();
   }
 
-  public void setAutoStartup(boolean autoStartup) {
-    this.autoStartup = autoStartup;
-  }
-
   public void setStartupDelay(Duration startupDelay) {
     this.startupDelay = startupDelay != null ? startupDelay : Duration.ZERO;
-  }
-
-  public void setWaitForJobsToCompleteOnShutdown(boolean waitForJobsToCompleteOnShutdown) {
-    this.waitForJobsToCompleteOnShutdown = waitForJobsToCompleteOnShutdown;
-  }
-
-  public void setOverwriteExistingJobs(boolean overwriteExistingJobs) {
-    this.overwriteExistingJobs = overwriteExistingJobs;
-  }
-
-  public void setMongoClient(MongoClient mongoClient) {
-    this.mongoClient = mongoClient;
-  }
-
-  public void setMongoDatabase(MongoDatabase mongoDatabase) {
-    this.mongoDatabase = mongoDatabase;
   }
 
   @Override
@@ -163,7 +143,10 @@ public class QuartzSchedulerFactoryBean
       }
       running.set(scheduler.isStarted());
     } catch (SchedulerException ex) {
-      throw new IllegalStateException("Could not start Quartz scheduler", ex);
+      if (failFastOnStart) {
+        throw new IllegalStateException("Could not start Quartz scheduler", ex);
+      }
+      log.error("Could not start Quartz scheduler; the scheduler thread will retry", ex);
     }
   }
 

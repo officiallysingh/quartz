@@ -68,6 +68,12 @@ public class QuartzProperties {
   private boolean clustered = true;
 
   /**
+   * If true, a failed {@code scheduler.start()} fails the Spring context. Set to false to log the
+   * error and keep the application up while the scheduler thread retries.
+   */
+  private boolean failFastOnStart = true;
+
+  /**
    * Cluster check-in interval ({@code org.quartz.jobStore.clusterCheckinInterval}). Unitless
    * numbers are milliseconds.
    */

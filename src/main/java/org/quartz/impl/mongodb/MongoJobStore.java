@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -60,6 +62,7 @@ import org.quartz.spi.TriggerFiredResult;
  * mongoUri}.
  */
 @Slf4j
+@Getter
 public class MongoJobStore implements JobStore {
 
   public static final String DEFAULT_URI = "mongodb://localhost:27017";
@@ -72,10 +75,12 @@ public class MongoJobStore implements JobStore {
 
   private final ReentrantLock localLock = new ReentrantLock(true);
   private final AtomicBoolean started = new AtomicBoolean();
+  private int clusterLockDepth;
+  private Thread lockHeartbeat;
 
-  private String mongoUri = DEFAULT_URI;
-  private String dbName = DEFAULT_DB;
-  private String collectionPrefix = DEFAULT_COLLECTION_PREFIX;
+  @Setter private String mongoUri = DEFAULT_URI;
+  @Setter private String dbName = DEFAULT_DB;
+  @Setter private String collectionPrefix = DEFAULT_COLLECTION_PREFIX;
   private boolean clustered;
   private Duration clusterCheckinInterval = Duration.ofSeconds(15);
   private Duration clusterLockWait;
@@ -95,30 +100,6 @@ public class MongoJobStore implements JobStore {
   private SchedulerSignaler signaler;
   private ClassLoader jobClassLoader;
   private ClusterManager clusterManager;
-
-  public String getMongoUri() {
-    return mongoUri;
-  }
-
-  public void setMongoUri(String mongoUri) {
-    this.mongoUri = mongoUri;
-  }
-
-  public String getDbName() {
-    return dbName;
-  }
-
-  public void setDbName(String dbName) {
-    this.dbName = dbName;
-  }
-
-  public void setCollectionPrefix(String collectionPrefix) {
-    this.collectionPrefix = collectionPrefix;
-  }
-
-  public MongoClient getMongoClient() {
-    return mongoClient;
-  }
 
   public void setMongoClient(MongoClient mongoClient) {
     this.mongoClient = mongoClient;
@@ -301,6 +282,7 @@ public class MongoJobStore implements JobStore {
   @Override
   public void shutdown() {
     started.set(false);
+    stopLockHeartbeat();
     if (clusterManager != null) {
       clusterManager.interrupt();
     }
@@ -829,11 +811,12 @@ public class MongoJobStore implements JobStore {
     withLockUnchecked(
         () -> {
           Document doc = triggerDoc(trigger.getKey());
-          if (doc != null && storedState(doc) == TriggerState.ACQUIRED) {
+          if (doc != null && acquiredByThisInstance(doc)) {
             OperableTrigger stored = triggerFrom(doc);
             replaceTriggerDoc(stored, TriggerState.WAITING);
           }
-        });
+        },
+        "release " + trigger.getKey());
   }
 
   @Override
@@ -847,7 +830,9 @@ public class MongoJobStore implements JobStore {
   @Override
   public void triggeredJobComplete(
       OperableTrigger trigger, JobDetail jobDetail, CompletedExecutionInstruction triggerInstCode) {
-    withLockUnchecked(() -> triggeredJobCompleteLocked(trigger, jobDetail, triggerInstCode));
+    withLockUnchecked(
+        () -> triggeredJobCompleteLocked(trigger, jobDetail, triggerInstCode),
+        "complete " + trigger.getKey() + " job " + jobDetail.getKey());
   }
 
   private void storeJobLocked(JobDetail newJob, boolean replaceExisting)
@@ -1018,6 +1003,11 @@ public class MongoJobStore implements JobStore {
         skipped.add(trigger.getKey());
         continue;
       }
+      Document jobRow = jobDoc(trigger.getJobKey());
+      if (jobRow != null && Boolean.TRUE.equals(jobRow.getBoolean("blocked"))) {
+        skipped.add(trigger.getKey());
+        continue;
+      }
       if (job.isConcurrentExecutionDisallowed() && acquiredJobs.contains(job.getKey())) {
         skipped.add(trigger.getKey());
         continue;
@@ -1054,7 +1044,8 @@ public class MongoJobStore implements JobStore {
     List<TriggerFiredResult> results = new ArrayList<>();
     for (OperableTrigger trigger : firedTriggers) {
       Document doc = triggerDoc(trigger.getKey());
-      if (doc == null || storedState(doc) != TriggerState.ACQUIRED) {
+      if (doc == null || !acquiredByThisInstance(doc)) {
+        results.add(new TriggerFiredResult((TriggerFiredBundle) null));
         continue;
       }
       OperableTrigger stored = triggerFrom(doc);
@@ -1062,6 +1053,12 @@ public class MongoJobStore implements JobStore {
       if (stored.getCalendarName() != null) {
         cal = retrieveCalendar(stored.getCalendarName());
         if (cal == null) {
+          log.error(
+              "Calendar '{}' missing for trigger '{}'; moving to ERROR",
+              stored.getCalendarName(),
+              trigger.getKey());
+          replaceTriggerDoc(stored, TriggerState.ERROR);
+          results.add(new TriggerFiredResult((TriggerFiredBundle) null));
           continue;
         }
       }
@@ -1071,10 +1068,13 @@ public class MongoJobStore implements JobStore {
       replaceTriggerDoc(stored, TriggerState.WAITING);
       JobDetail job = retrieveJob(stored.getJobKey());
       if (job == null) {
+        results.add(new TriggerFiredResult((TriggerFiredBundle) null));
         continue;
       }
       if (job.isConcurrentExecutionDisallowed()) {
-        jobs.updateOne(jobFilter(job.getKey()), Updates.set("blocked", true));
+        jobs.updateOne(
+            jobFilter(job.getKey()),
+            Updates.combine(Updates.set("blocked", true), Updates.set("blockedBy", instanceId)));
         for (OperableTrigger other : getTriggersForJob(job.getKey())) {
           Document otherDoc = triggerDoc(other.getKey());
           if (otherDoc == null) {
@@ -1108,6 +1108,17 @@ public class MongoJobStore implements JobStore {
       OperableTrigger trigger, JobDetail jobDetail, CompletedExecutionInstruction code)
       throws JobPersistenceException {
     Document jobDoc = jobDoc(jobDetail.getKey());
+    if (jobDoc != null
+        && Boolean.TRUE.equals(jobDoc.getBoolean("blocked"))
+        && !instanceId.equals(jobDoc.getString("blockedBy"))
+        && jobDoc.getString("blockedBy") != null) {
+      log.warn(
+          "Ignoring job complete from instance '{}' for job {} owned by '{}'",
+          instanceId,
+          jobDetail.getKey(),
+          jobDoc.getString("blockedBy"));
+      return;
+    }
     if (jobDoc != null) {
       JobDetail jd = jobFrom(jobDoc);
       if (jd.isPersistJobDataAfterExecution()) {
@@ -1120,7 +1131,9 @@ public class MongoJobStore implements JobStore {
         storeJobLocked(jd, true);
       }
       if (jd.isConcurrentExecutionDisallowed()) {
-        jobs.updateOne(jobFilter(jd.getKey()), Updates.set("blocked", false));
+        jobs.updateOne(
+            jobFilter(jd.getKey()),
+            Updates.combine(Updates.set("blocked", false), Updates.unset("blockedBy")));
         for (OperableTrigger other : getTriggersForJob(jd.getKey())) {
           Document otherDoc = triggerDoc(other.getKey());
           if (otherDoc == null) {
@@ -1139,7 +1152,9 @@ public class MongoJobStore implements JobStore {
         }
       }
     } else {
-      jobs.updateOne(jobFilter(jobDetail.getKey()), Updates.set("blocked", false));
+      jobs.updateOne(
+          jobFilter(jobDetail.getKey()),
+          Updates.combine(Updates.set("blocked", false), Updates.unset("blockedBy")));
     }
 
     Document triggerDoc = triggerDoc(trigger.getKey());
@@ -1225,8 +1240,9 @@ public class MongoJobStore implements JobStore {
             if (clustered) {
               recoverExpiredAcquisitions();
             } else {
-              recoverAcquiredOwnedBy(null);
+              recoverAcquiredOwnedBy(instanceId);
             }
+            recoverOrphanedBlockedJobs(true);
           });
     } catch (JobPersistenceException e) {
       log.error("Failed recovering acquired triggers", e);
@@ -1264,7 +1280,103 @@ public class MongoJobStore implements JobStore {
   }
 
   private void recoverFailedInstances() {
-    recoverExpiredAcquisitions();
+    try {
+      withLock(
+          () -> {
+            recoverExpiredAcquisitions();
+            recoverOrphanedBlockedJobs(false);
+          });
+    } catch (JobPersistenceException e) {
+      log.error("Failed recovering acquired or blocked triggers", e);
+    }
+    recoverErrorTriggersIfJobLoads();
+  }
+
+  /**
+   * A {@code blocked} flag is orphaned only once the instance that set it is gone, so an execution
+   * in flight elsewhere must not be unblocked. Triggers of a running job are BLOCKED rather than
+   * ACQUIRED, so the owning instance lease is the only reliable liveness signal; {@code
+   * hasLiveAcquisition} is the fallback for documents written before {@code blockedBy} existed.
+   *
+   * @param startup treats this instance's own id as gone, since nothing it started is running yet
+   */
+  private void recoverOrphanedBlockedJobs(boolean startup) {
+    for (Document job :
+        jobs.find(
+            Filters.and(Filters.eq("schedName", instanceName), Filters.eq("blocked", true)))) {
+      JobKey key = new JobKey(job.getString("name"), job.getString("group"));
+      String owner = job.getString("blockedBy");
+      if (owner == null ? hasLiveAcquisition(key) : isBlockOwnerLive(owner, startup)) {
+        continue;
+      }
+      jobs.updateOne(
+          jobFilter(key),
+          Updates.combine(Updates.set("blocked", false), Updates.unset("blockedBy")));
+      for (OperableTrigger other : getTriggersForJob(key)) {
+        Document otherDoc = triggerDoc(other.getKey());
+        if (otherDoc == null) {
+          continue;
+        }
+        TriggerState st = storedState(otherDoc);
+        OperableTrigger ot = triggerFrom(otherDoc);
+        if (st == TriggerState.BLOCKED) {
+          replaceTriggerDoc(ot, TriggerState.WAITING);
+        } else if (st == TriggerState.PAUSED_BLOCKED) {
+          replaceTriggerDoc(ot, TriggerState.PAUSED);
+        }
+      }
+      log.warn("Cleared orphaned blocked flag for job {}", key);
+    }
+  }
+
+  private boolean isBlockOwnerLive(String owner, boolean startup) {
+    if (instanceId.equals(owner)) {
+      return !startup;
+    }
+    if (leases == null) {
+      return false;
+    }
+    Document lease =
+        leases
+            .find(Filters.and(Filters.eq("schedName", instanceName), Filters.eq("owner", owner)))
+            .first();
+    if (lease == null) {
+      return false;
+    }
+    Instant expires;
+    try {
+      expires = BsonJobStoreCodec.toInstant(lease.get("expiresAt"));
+    } catch (RuntimeException e) {
+      log.warn("Unreadable lease expiry for instance '{}'; treating it as live", owner, e);
+      return true;
+    }
+    return expires == null || !expires.isBefore(Instant.now());
+  }
+
+  private boolean hasLiveAcquisition(JobKey jobKey) {
+    Instant now = Instant.now();
+    for (OperableTrigger trigger : getTriggersForJob(jobKey)) {
+      Document doc = triggerDoc(trigger.getKey());
+      if (doc == null || storedState(doc) != TriggerState.ACQUIRED) {
+        continue;
+      }
+      Instant expires;
+      try {
+        expires = BsonJobStoreCodec.toInstant(doc.get("leaseExpiresAt"));
+      } catch (RuntimeException e) {
+        log.warn(
+            "Unreadable lease expiry on trigger '{}'; leaving job {} blocked",
+            trigger.getKey(),
+            jobKey,
+            e);
+        return true;
+      }
+      // No readable expiry means we cannot prove the job finished, so keep it blocked.
+      if (expires == null || !expires.isBefore(now)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -1367,6 +1479,11 @@ public class MongoJobStore implements JobStore {
 
   private static Bson stateEq(TriggerState state) {
     return Filters.eq("state", state.name());
+  }
+
+  private boolean acquiredByThisInstance(Document doc) {
+    return storedState(doc) == TriggerState.ACQUIRED
+        && instanceId.equals(doc.getString("leaseOwner"));
   }
 
   private JobDetail jobFrom(Document doc) {
@@ -1498,7 +1615,7 @@ public class MongoJobStore implements JobStore {
     localLock.lock();
     try {
       boolean clusterLock = clustered;
-      if (clusterLock && !obtainLock()) {
+      if (clusterLock && !enterClusterLock()) {
         throw new JobPersistenceException(
             LOCK_FAILURE_MESSAGE + " for scheduler '" + instanceName + "'");
       }
@@ -1513,7 +1630,7 @@ public class MongoJobStore implements JobStore {
         throw new JobPersistenceException(e.getMessage(), e);
       } finally {
         if (clusterLock) {
-          releaseLock();
+          exitClusterLock();
         }
       }
     } finally {
@@ -1522,21 +1639,53 @@ public class MongoJobStore implements JobStore {
   }
 
   private void withLockUnchecked(PersistedOp op) {
+    withLockUnchecked(op, null);
+  }
+
+  private void withLockUnchecked(PersistedOp op, String context) {
     try {
       withLock(op);
     } catch (JobPersistenceException e) {
-      if (isShutdownRace(e) || isClusterLockFailure(e)) {
-        if (isClusterLockFailure(e)) {
-          log.warn(
-              "Could not obtain MongoDB cluster lock for scheduler '{}'; will retry later",
-              instanceName);
-        } else {
-          log.debug("Ignoring MongoDB access after scheduler halt", e);
-        }
+      String detail = context == null ? "" : " (" + context + ")";
+      if (isShutdownRace(e)) {
+        log.debug("Ignoring MongoDB access after scheduler halt{}", detail, e);
         return;
       }
-      throw new IllegalStateException(e);
+      if (isClusterLockFailure(e)) {
+        try {
+          withLock(op);
+          return;
+        } catch (JobPersistenceException retry) {
+          if (isShutdownRace(retry)) {
+            log.debug("Ignoring MongoDB access after scheduler halt{}", detail, retry);
+            return;
+          }
+          if (isClusterLockFailure(retry)) {
+            log.error(
+                "Could not obtain MongoDB cluster lock for scheduler '{}'; will retry later{}",
+                instanceName,
+                detail);
+            return;
+          }
+          log.error("Job store operation failed for scheduler '{}'{}", instanceName, detail, retry);
+          return;
+        }
+      }
+      log.error("Job store operation failed for scheduler '{}'{}", instanceName, detail, e);
     }
+  }
+
+  /** Holds {@code TRIGGER_ACCESS} for {@code hold} so tests can observe lock heartbeat renewals. */
+  void runLocked(Duration hold) throws JobPersistenceException {
+    withLock(
+        () -> {
+          try {
+            Thread.sleep(hold.toMillis());
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new JobPersistenceException("Interrupted while holding cluster lock", e);
+          }
+        });
   }
 
   private boolean obtainLock() {
@@ -1635,7 +1784,7 @@ public class MongoJobStore implements JobStore {
       locks.updateOne(
           Filters.and(
               Filters.eq("schedName", instanceName),
-              Filters.eq("lockName", "TRIGGER_ACCESS"),
+              Filters.eq("lockName", TRIGGER_ACCESS),
               Filters.eq("owner", instanceId)),
           Updates.unset("owner"));
     } catch (RuntimeException e) {
@@ -1643,6 +1792,84 @@ public class MongoJobStore implements JobStore {
         log.warn("Failed to release MongoDB cluster lock for scheduler '{}'", instanceName, e);
       }
     }
+  }
+
+  private boolean enterClusterLock() {
+    if (clusterLockDepth > 0) {
+      clusterLockDepth++;
+      return true;
+    }
+    if (!obtainLock()) {
+      return false;
+    }
+    clusterLockDepth = 1;
+    startLockHeartbeat();
+    return true;
+  }
+
+  private void exitClusterLock() {
+    clusterLockDepth = Math.max(0, clusterLockDepth - 1);
+    if (clusterLockDepth > 0) {
+      return;
+    }
+    try {
+      releaseLock();
+    } finally {
+      stopLockHeartbeat();
+    }
+  }
+
+  private synchronized void startLockHeartbeat() {
+    if (lockHeartbeat != null) {
+      return;
+    }
+    Thread heartbeat =
+        Thread.ofVirtual()
+            .name("QuartzLockHeartbeat-" + instanceName)
+            .unstarted(
+                () -> {
+                  while (!Thread.currentThread().isInterrupted()) {
+                    try {
+                      long sleepMs = Math.max(clusterCheckinInterval.toMillis() / 2, 500L);
+                      Thread.sleep(sleepMs);
+                      renewClusterLockLease();
+                    } catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                      return;
+                    } catch (RuntimeException e) {
+                      if (!isShutdownRace(e)) {
+                        log.warn(
+                            "Failed to renew MongoDB cluster lock for scheduler '{}'",
+                            instanceName,
+                            e);
+                      }
+                    }
+                  }
+                });
+    lockHeartbeat = heartbeat;
+    heartbeat.start();
+  }
+
+  private synchronized void stopLockHeartbeat() {
+    Thread heartbeat = lockHeartbeat;
+    lockHeartbeat = null;
+    if (heartbeat != null) {
+      heartbeat.interrupt();
+    }
+  }
+
+  private void renewClusterLockLease() {
+    if (locks == null) {
+      return;
+    }
+    Instant expiry =
+        Instant.now().plusMillis(Math.max(clusterCheckinInterval.toMillis() * 2, 30_000));
+    locks.updateOne(
+        Filters.and(
+            Filters.eq("schedName", instanceName),
+            Filters.eq("lockName", TRIGGER_ACCESS),
+            Filters.eq("owner", instanceId)),
+        Updates.set("expires", expiry));
   }
 
   private boolean isShutdownRace(Throwable error) {
