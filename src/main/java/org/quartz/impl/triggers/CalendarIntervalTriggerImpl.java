@@ -64,7 +64,7 @@ import org.quartz.TriggerUtils;
  * @author James House
  */
 public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarIntervalTrigger>
-    implements CalendarIntervalTrigger, CoreTrigger {
+    implements CalendarIntervalTrigger {
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -833,9 +833,5 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     }
 
     return cb;
-  }
-
-  public boolean hasAdditionalProperties() {
-    return false;
   }
 }

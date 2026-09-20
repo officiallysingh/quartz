@@ -49,13 +49,6 @@ public class JobDetailTest {
 
   public class SomeExtendedNonConcurrentPersistentJob extends SomeNonConcurrentPersistentJob {}
 
-  public class SomeStatefulJob implements StatefulJob {
-    @Override
-    public void execute(JobExecutionContext context) throws JobExecutionException {}
-  }
-
-  public class SomeExtendedStatefulJob extends SomeStatefulJob {}
-
   @Test
   void testClone() {
     JobDetailImpl jobDetail = new JobDetailImpl();
@@ -93,13 +86,6 @@ public class JobDetailTest {
         jobDetail.isConcurrentExecutionDisallowed(),
         "Expecting SomeNonConcurrentPersistentJob to disallow concurrent execution");
 
-    jobDetail.setJobClass(SomeStatefulJob.class);
-    assertTrue(
-        jobDetail.isPersistJobDataAfterExecution(), "Expecting SomeStatefulJob to be persistent");
-    assertTrue(
-        jobDetail.isConcurrentExecutionDisallowed(),
-        "Expecting SomeStatefulJob to disallow concurrent execution");
-
     jobDetail.setJobClass(SomeExtendedPersistentJob.class);
     assertTrue(
         jobDetail.isPersistJobDataAfterExecution(),
@@ -123,13 +109,5 @@ public class JobDetailTest {
     assertTrue(
         jobDetail.isConcurrentExecutionDisallowed(),
         "Expecting SomeExtendedNonConcurrentPersistentJob to disallow concurrent execution");
-
-    jobDetail.setJobClass(SomeExtendedStatefulJob.class);
-    assertTrue(
-        jobDetail.isPersistJobDataAfterExecution(),
-        "Expecting SomeExtendedStatefulJob to be persistent");
-    assertTrue(
-        jobDetail.isConcurrentExecutionDisallowed(),
-        "Expecting SomeExtendedStatefulJob to disallow concurrent execution");
   }
 }

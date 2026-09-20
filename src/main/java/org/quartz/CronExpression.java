@@ -38,6 +38,9 @@ import java.util.TreeSet;
  * ability to specify complex time combinations such as &quot;At 8:00am every Monday through
  * Friday&quot; or &quot;At 1:30am every last Friday of the month&quot;.
  *
+ * <p>{@link java.util.Date} and {@link java.util.Calendar} are used only inside this engine so DST
+ * matching stays identical to classic Quartz. Public trigger and config APIs use {@link Instant}.
+ *
  * <p>Cron expressions are comprised of 6 required fields and one optional field separated by white
  * space. The fields respectively are described as follows:
  *

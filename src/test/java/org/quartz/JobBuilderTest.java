@@ -25,11 +25,6 @@ import org.junit.jupiter.api.Test;
 /** Test JobBuilder functionality */
 public class JobBuilderTest {
 
-  @SuppressWarnings("deprecation")
-  public static class TestStatefulJob implements StatefulJob {
-    public void execute(JobExecutionContext context) throws JobExecutionException {}
-  }
-
   public static class TestJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {}
   }
@@ -87,7 +82,7 @@ public class JobBuilderTest {
 
     job =
         newJob()
-            .ofType(TestStatefulJob.class)
+            .ofType(TestAnnotatedJob.class)
             .withIdentity("j1", "g1")
             .requestRecovery(false)
             .build();

@@ -78,7 +78,7 @@ import org.quartz.Trigger;
  * @author Zemian Deng &lt;saltnlight5@gmail.com&gt;
  */
 public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeIntervalTrigger>
-    implements DailyTimeIntervalTrigger, CoreTrigger {
+    implements DailyTimeIntervalTrigger {
 
   private static final long serialVersionUID = -632667786771388749L;
 
@@ -903,11 +903,6 @@ public class DailyTimeIntervalTriggerImpl extends AbstractTrigger<DailyTimeInter
     }
 
     return cb;
-  }
-
-  /** This trigger has no additional properties besides what's defined in this class. */
-  public boolean hasAdditionalProperties() {
-    return false;
   }
 
   public int getRepeatCount() {

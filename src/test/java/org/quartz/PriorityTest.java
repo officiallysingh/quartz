@@ -34,8 +34,9 @@ class PriorityTest {
   private static CountDownLatch latch;
   private static StringBuffer result;
 
-  @SuppressWarnings("deprecation")
-  public static class TestJob implements StatefulJob {
+  @PersistJobDataAfterExecution
+  @DisallowConcurrentExecution
+  public static class TestJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {
       result.append(context.getTrigger().getKey().getName());
       latch.countDown();
@@ -48,7 +49,6 @@ class PriorityTest {
     PriorityTest.result = new StringBuffer();
   }
 
-  @SuppressWarnings("deprecation")
   @Test
   void testSameDefaultPriority() throws Exception {
     Properties config = new Properties();
@@ -80,7 +80,6 @@ class PriorityTest {
     sched.shutdown();
   }
 
-  @SuppressWarnings("deprecation")
   @Test
   void testDifferentPriority() throws Exception {
     Properties config = new Properties();

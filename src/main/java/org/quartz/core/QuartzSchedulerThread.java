@@ -101,13 +101,6 @@ public class QuartzSchedulerThread extends Thread {
     this.qs = qs;
     this.qsRsrcs = qsRsrcs;
     this.setDaemon(setDaemon);
-    if (qsRsrcs.isThreadsInheritInitializersClassLoadContext()) {
-      log.info(
-          "QuartzSchedulerThread Inheriting ContextClassLoader of thread: {}",
-          Thread.currentThread().getName());
-      this.setContextClassLoader(Thread.currentThread().getContextClassLoader());
-    }
-
     this.setPriority(threadPrio);
 
     // start the underlying thread, but put this object into the 'paused'
@@ -280,6 +273,9 @@ public class QuartzSchedulerThread extends Thread {
             if (log.isDebugEnabled())
               log.debug("batch acquisition of {} triggers", triggers == null ? 0 : triggers.size());
           } catch (JobPersistenceException jpe) {
+            if (halted.get() || Thread.currentThread().isInterrupted()) {
+              break;
+            }
             if (acquiresFailed == 0) {
               qs.notifySchedulerListenersError(
                   "An error occurred while scanning for the next triggers to fire.", jpe);
@@ -287,6 +283,9 @@ public class QuartzSchedulerThread extends Thread {
             if (acquiresFailed < Integer.MAX_VALUE) acquiresFailed++;
             continue;
           } catch (RuntimeException e) {
+            if (halted.get() || Thread.currentThread().isInterrupted()) {
+              break;
+            }
             if (acquiresFailed == 0) {
               getLog().error("quartzSchedulerThreadLoop: RuntimeException {}", e.getMessage(), e);
             }
@@ -428,6 +427,9 @@ public class QuartzSchedulerThread extends Thread {
         }
 
       } catch (RuntimeException re) {
+        if (halted.get() || Thread.currentThread().isInterrupted()) {
+          break;
+        }
         getLog().error("Runtime error occurred in main trigger firing loop.", re);
       }
     } // while (!halted)

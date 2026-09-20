@@ -107,10 +107,7 @@ public class QuartzAutoConfiguration {
     boolean clustered = properties.isClustered();
     String instanceId = properties.getInstanceId();
     if (!StringUtils.hasText(instanceId)) {
-      instanceId =
-          clustered
-              ? StdSchedulerFactory.AUTO_GENERATE_INSTANCE_ID
-              : StdSchedulerFactory.DEFAULT_INSTANCE_ID;
+      instanceId = StdSchedulerFactory.AUTO_GENERATE_INSTANCE_ID;
     }
     quartz.setProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID, instanceId);
     quartz.setProperty(

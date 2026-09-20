@@ -63,13 +63,9 @@ public class VirtualThreadPool implements ThreadPool {
 
   private final AtomicLong threadNumber = new AtomicLong();
 
-  private boolean inheritLoader;
-
   private String threadNamePrefix;
 
   private String schedulerInstanceName;
-
-  private ClassLoader contextClassLoader;
 
   public Logger getLog() {
     return log;
@@ -99,14 +95,6 @@ public class VirtualThreadPool implements ThreadPool {
 
   public String getThreadNamePrefix() {
     return threadNamePrefix;
-  }
-
-  public boolean isThreadsInheritContextClassLoaderOfInitializingThread() {
-    return inheritLoader;
-  }
-
-  public void setThreadsInheritContextClassLoaderOfInitializingThread(boolean inheritLoader) {
-    this.inheritLoader = inheritLoader;
   }
 
   /**
@@ -144,13 +132,6 @@ public class VirtualThreadPool implements ThreadPool {
       throw new SchedulerConfigException("Thread count must be > 0");
     }
     permits = new Semaphore(maxConcurrency);
-    if (inheritLoader) {
-      contextClassLoader = Thread.currentThread().getContextClassLoader();
-      getLog()
-          .info(
-              "Job execution virtual threads will use class loader of thread: {}",
-              Thread.currentThread().getName());
-    }
     getLog()
         .info(
             "VirtualThreadPool initialized with max concurrency {} for scheduler '{}'",
@@ -242,9 +223,6 @@ public class VirtualThreadPool implements ThreadPool {
         .start(
             () -> {
               try {
-                if (inheritLoader && contextClassLoader != null) {
-                  Thread.currentThread().setContextClassLoader(contextClassLoader);
-                }
                 runnable.run();
               } finally {
                 activeCount.decrementAndGet();

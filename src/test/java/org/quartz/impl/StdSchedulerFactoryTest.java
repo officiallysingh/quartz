@@ -25,6 +25,34 @@ import org.slf4j.helpers.NOPLogger;
 class StdSchedulerFactoryTest {
 
   @Test
+  void defaultPropertiesDoNotNeedAPropertiesFile() {
+    Properties defaults = StdSchedulerFactory.defaultProperties();
+    assertEquals(
+        "quartzScheduler", defaults.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME));
+    assertEquals(
+        StdSchedulerFactory.AUTO_GENERATE_INSTANCE_ID,
+        defaults.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID));
+    assertEquals("10", defaults.getProperty("org.quartz.threadPool.threadCount"));
+    assertEquals("true", defaults.getProperty("org.quartz.jobStore.isClustered"));
+    assertEquals("qrtz_", defaults.getProperty("org.quartz.jobStore.collectionPrefix"));
+  }
+
+  @Test
+  void initializePropertiesMergesDefaults() throws Exception {
+    Properties overlay = new Properties();
+    overlay.setProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME, "custom");
+    StdSchedulerFactory factory = new StdSchedulerFactory();
+    factory.initialize(overlay);
+    java.lang.reflect.Field cfg = StdSchedulerFactory.class.getDeclaredField("cfg");
+    cfg.setAccessible(true);
+    org.quartz.utils.PropertiesParser parser = (org.quartz.utils.PropertiesParser) cfg.get(factory);
+    Properties merged = parser.getUnderlyingProperties();
+    assertEquals("custom", merged.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME));
+    assertEquals("10", merged.getProperty("org.quartz.threadPool.threadCount"));
+    assertEquals("true", merged.getProperty("org.quartz.jobStore.isClustered"));
+  }
+
+  @Test
   void testOverrideSystemProperties() {
     Properties p = new Properties();
     p.setProperty("nonsense1", "hello1");

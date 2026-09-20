@@ -59,8 +59,6 @@ public class SimpleThreadPool implements ThreadPool {
   private boolean isShutdown = false;
   private boolean handoffPending = false;
 
-  private boolean inheritLoader = false;
-
   private boolean inheritGroup = true;
 
   private boolean makeThreadsDaemons = false;
@@ -156,20 +154,6 @@ public class SimpleThreadPool implements ThreadPool {
     return threadNamePrefix;
   }
 
-  /**
-   * @return Returns the threadsInheritContextClassLoaderOfInitializingThread.
-   */
-  public boolean isThreadsInheritContextClassLoaderOfInitializingThread() {
-    return inheritLoader;
-  }
-
-  /**
-   * @param inheritLoader The threadsInheritContextClassLoaderOfInitializingThread to set.
-   */
-  public void setThreadsInheritContextClassLoaderOfInitializingThread(boolean inheritLoader) {
-    this.inheritLoader = inheritLoader;
-  }
-
   public boolean isThreadsInheritGroupOfInitializingThread() {
     return inheritGroup;
   }
@@ -226,13 +210,6 @@ public class SimpleThreadPool implements ThreadPool {
       }
     }
 
-    if (isThreadsInheritContextClassLoaderOfInitializingThread()) {
-      getLog()
-          .info(
-              "Job execution threads will use class loader of thread: {}",
-              Thread.currentThread().getName());
-    }
-
     // create the worker threads and start them
     for (WorkerThread wt : createWorkerThreads(count)) {
       wt.start();
@@ -254,9 +231,6 @@ public class SimpleThreadPool implements ThreadPool {
               threadPrefix + "-" + i,
               getThreadPriority(),
               isMakeThreadsDaemons());
-      if (isThreadsInheritContextClassLoaderOfInitializingThread()) {
-        wt.setContextClassLoader(Thread.currentThread().getContextClassLoader());
-      }
       workers.add(wt);
     }
 

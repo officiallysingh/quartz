@@ -44,6 +44,9 @@ public class SimpleJobFactory implements JobFactory {
 
     JobDetail jobDetail = bundle.getJobDetail();
     Class<? extends Job> jobClass = jobDetail.getJobClass();
+    if (jobClass == null) {
+      throw new SchedulerException("Job '" + jobDetail.getKey() + "' has no job class");
+    }
     try {
       if (log.isDebugEnabled()) {
         log.debug(
@@ -52,8 +55,7 @@ public class SimpleJobFactory implements JobFactory {
 
       return jobClass.getDeclaredConstructor().newInstance();
     } catch (Exception e) {
-      throw new SchedulerException(
-          "Problem instantiating class '" + jobDetail.getJobClass().getName() + "'", e);
+      throw new SchedulerException("Problem instantiating class '" + jobClass.getName() + "'", e);
     }
   }
 }

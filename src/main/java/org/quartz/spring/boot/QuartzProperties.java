@@ -23,7 +23,7 @@ public class QuartzProperties {
   /** Scheduler instance name ({@code org.quartz.scheduler.instanceName}). */
   private String name = "quartzScheduler";
 
-  /** Scheduler instance id. Empty means AUTO when clustered, NON_CLUSTERED otherwise. */
+  /** Scheduler instance id. Empty means a fresh lease UUID ({@code AUTO}) on each process start. */
   private String instanceId;
 
   /** Whether to start the scheduler after the context is ready. */
@@ -62,10 +62,10 @@ public class QuartzProperties {
   private Duration batchTimeWindow = Duration.ZERO;
 
   /**
-   * Multi-JVM clustering ({@code org.quartz.jobStore.isClustered}). Requires a Mongo replica set
-   * and NTP.
+   * Multi-JVM clustering ({@code org.quartz.jobStore.isClustered}). Shared Mongo is the default;
+   * recover by expired lease, not recycled instance names.
    */
-  private boolean clustered = false;
+  private boolean clustered = true;
 
   /**
    * Cluster check-in interval ({@code org.quartz.jobStore.clusterCheckinInterval}). Unitless

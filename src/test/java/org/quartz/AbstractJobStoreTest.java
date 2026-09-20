@@ -46,8 +46,6 @@ import org.quartz.Trigger.TriggerState;
 import org.quartz.impl.JobDetailImpl;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
-import org.quartz.simpl.CascadingClassLoadHelper;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
@@ -65,16 +63,13 @@ public abstract class AbstractJobStoreTest {
   private SampleSignaler fSignaler;
   private TestInfo testInfo;
 
-  @SuppressWarnings("deprecation")
   @BeforeEach
   protected void setUp(TestInfo testInfo) throws Exception {
     this.testInfo = testInfo;
     this.fSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
     // Stable fixture name; persistent JobStore implementations must isolate storage per create.
     this.fJobStore = createJobStore(FIXTURE_STORE_NAME);
-    this.fJobStore.initialize(loadHelper, this.fSignaler);
+    this.fJobStore.initialize(this.fSignaler);
     this.fJobStore.schedulerStarted();
 
     this.fJobDetail = new JobDetailImpl("job1", "jobGroup1", MyJob.class);
@@ -109,7 +104,6 @@ public abstract class AbstractJobStoreTest {
 
   protected abstract Map<String, ? extends JobStore> stores();
 
-  @SuppressWarnings("deprecation")
   @Test
   void testAcquireNextTrigger() throws Exception {
 
@@ -177,7 +171,6 @@ public abstract class AbstractJobStoreTest {
             .get(0));
   }
 
-  @SuppressWarnings("deprecation")
   @Test
   void testAcquireNextTriggerBatch() throws Exception {
 
@@ -317,7 +310,6 @@ public abstract class AbstractJobStoreTest {
     this.fJobStore.releaseAcquiredTrigger(trigger1);
   }
 
-  @SuppressWarnings("deprecation")
   @Test
   void testTriggerStates() throws Exception {
     OperableTrigger trigger =
@@ -359,7 +351,6 @@ public abstract class AbstractJobStoreTest {
   }
 
   // See: http://jira.opensymphony.com/browse/QUARTZ-606
-  @SuppressWarnings("deprecation")
   @Disabled
   @Test
   void testStoreTriggerReplacesTrigger() throws Exception {
@@ -394,7 +385,6 @@ public abstract class AbstractJobStoreTest {
         fJobStore.retrieveTrigger(tr.getKey()).getCalendarName());
   }
 
-  @SuppressWarnings("deprecation")
   @Test
   void testPauseJobGroupPausesNewJob() throws Exception {
     final String jobName1 = "PauseJobGroupPausesNewJob";
@@ -421,11 +411,8 @@ public abstract class AbstractJobStoreTest {
   @Test
   void testStoreAndRetrieveJobs() throws Exception {
     SchedulerSignaler schedSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
-
     JobStore store = createJobStore("testStoreAndRetrieveJobs");
-    store.initialize(loadHelper, schedSignaler);
+    store.initialize(schedSignaler);
 
     // Store jobs.
     for (int i = 0; i < 10; i++) {
@@ -454,11 +441,8 @@ public abstract class AbstractJobStoreTest {
   @Test
   void testStoreAndRetrieveJobsGroups() throws Exception {
     SchedulerSignaler schedSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
-
     JobStore store = createJobStore("testStoreAndRetrieveJobsGroups");
-    store.initialize(loadHelper, schedSignaler);
+    store.initialize(schedSignaler);
 
     List<JobDetail> expectedJobs = new ArrayList<>(10);
     // these will NOT be in order because of hashmap
@@ -498,11 +482,8 @@ public abstract class AbstractJobStoreTest {
 
   private JobStore createVariedTriggers() throws JobPersistenceException, SchedulerConfigException {
     SchedulerSignaler schedSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
-
     JobStore store = createJobStore();
-    store.initialize(loadHelper, schedSignaler);
+    store.initialize(schedSignaler);
 
     // Store jobs and triggers.
     for (int i = 0; i < 10; i++) {
@@ -559,11 +540,8 @@ public abstract class AbstractJobStoreTest {
   @Test
   void testStoreAndRetrieveTriggers() throws Exception {
     SchedulerSignaler schedSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
-
     JobStore store = createJobStore();
-    store.initialize(loadHelper, schedSignaler);
+    store.initialize(schedSignaler);
 
     // Store jobs and triggers.
     for (int i = 0; i < 10; i++) {
@@ -678,11 +656,8 @@ public abstract class AbstractJobStoreTest {
   @Test
   void testMatchers() throws Exception {
     SchedulerSignaler schedSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
-
     JobStore store = createJobStore("testMatchers");
-    store.initialize(loadHelper, schedSignaler);
+    store.initialize(schedSignaler);
 
     JobDetail job = JobBuilder.newJob(MyJob.class).withIdentity("job1", "aaabbbccc").build();
     store.storeJob(job, true);
@@ -775,11 +750,8 @@ public abstract class AbstractJobStoreTest {
   @Test
   void testAcquireTriggers() throws Exception {
     SchedulerSignaler schedSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
-
     JobStore store = createJobStore("testAcquireTriggers");
-    store.initialize(loadHelper, schedSignaler);
+    store.initialize(schedSignaler);
 
     // Setup: Store jobs and triggers.
     long MIN = 60 * 1000L;
@@ -822,11 +794,8 @@ public abstract class AbstractJobStoreTest {
   @Test
   void testAcquireTriggersInBatch() throws Exception {
     SchedulerSignaler schedSignaler = new SampleSignaler();
-    ClassLoadHelper loadHelper = new CascadingClassLoadHelper();
-    loadHelper.initialize();
-
     JobStore store = createJobStore("testAcquireTriggersInBatch");
-    store.initialize(loadHelper, schedSignaler);
+    store.initialize(schedSignaler);
 
     // Setup: Store jobs and triggers.
     long MIN = 60 * 1000L;

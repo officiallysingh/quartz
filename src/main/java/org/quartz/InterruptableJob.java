@@ -51,7 +51,6 @@ package org.quartz;
  * demonstration.
  *
  * @see Job
- * @see StatefulJob
  * @see Scheduler#interrupt(JobKey)
  * @see Scheduler#interrupt(String)
  * @author James House

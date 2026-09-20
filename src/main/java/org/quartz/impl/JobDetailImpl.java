@@ -27,7 +27,6 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobKey;
 import org.quartz.PersistJobDataAfterExecution;
 import org.quartz.Scheduler;
-import org.quartz.StatefulJob;
 import org.quartz.Trigger;
 import org.quartz.utils.ClassUtils;
 
@@ -45,13 +44,11 @@ import org.quartz.utils.ClassUtils;
  * can only point to one <code>Job</code>.
  *
  * @see Job
- * @see StatefulJob
  * @see JobDataMap
  * @see Trigger
  * @author James House
  * @author Sharada Jambula
  */
-@SuppressWarnings("deprecation")
 public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail {
 
   private static final long serialVersionUID = -6069784757781506897L;

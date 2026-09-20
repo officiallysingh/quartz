@@ -45,8 +45,7 @@ import org.quartz.spi.OperableTrigger;
  * @author James House
  * @author contributions by Lieven Govaerts of Ebitec Nv, Belgium.
  */
-public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
-    implements SimpleTrigger, CoreTrigger {
+public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger> implements SimpleTrigger {
 
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,8 +56,7 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
    */
 
   /**
-   * Required for serialization support. Introduced in Quartz 1.6.1 to maintain compatibility after
-   * the introduction of hasAdditionalProperties method.
+   * Required for serialization support.
    *
    * @see java.io.Serializable
    */
@@ -566,15 +564,6 @@ public class SimpleTriggerImpl extends AbstractTrigger<SimpleTrigger>
     if (repeatCount != 0 && repeatInterval.toMillis() < 1) {
       throw new SchedulerException("Repeat Interval cannot be zero.");
     }
-  }
-
-  /**
-   * Used by extensions of SimpleTrigger to imply that there are additional properties, specifically
-   * so that extensions can choose whether to be stored as a serialized blob, or as a flattened
-   * SimpleTrigger table.
-   */
-  public boolean hasAdditionalProperties() {
-    return false;
   }
 
   /**

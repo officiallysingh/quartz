@@ -98,12 +98,16 @@ public class QuartzSchedulerFactoryBean
     StdSchedulerFactory factory = new StdSchedulerFactory();
     factory.setMongoClient(mongoClient);
     factory.setMongoDatabase(mongoDatabase);
+    if (applicationContext != null) {
+      factory.setJobClassLoader(applicationContext.getClassLoader());
+    }
     factory.initialize(quartzProperties);
     this.scheduler = factory.getScheduler();
     if (applicationContext != null) {
       AutowireCapableJobFactory jobFactory = new AutowireCapableJobFactory();
       AutowireCapableBeanFactory beanFactory = applicationContext.getAutowireCapableBeanFactory();
       jobFactory.setBeanFactory(beanFactory);
+      jobFactory.setClassLoader(applicationContext.getClassLoader());
       scheduler.setJobFactory(jobFactory);
     }
     registerCalendars();

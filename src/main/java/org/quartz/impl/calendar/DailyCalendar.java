@@ -501,6 +501,38 @@ public class DailyCalendar extends BaseCalendar {
    *
    * @return a boolean indicating whether the time range is inverted
    */
+  public int getRangeStartingHourOfDay() {
+    return rangeStartingHourOfDay;
+  }
+
+  public int getRangeStartingMinute() {
+    return rangeStartingMinute;
+  }
+
+  public int getRangeStartingSecond() {
+    return rangeStartingSecond;
+  }
+
+  public int getRangeStartingMillis() {
+    return rangeStartingMillis;
+  }
+
+  public int getRangeEndingHourOfDay() {
+    return rangeEndingHourOfDay;
+  }
+
+  public int getRangeEndingMinute() {
+    return rangeEndingMinute;
+  }
+
+  public int getRangeEndingSecond() {
+    return rangeEndingSecond;
+  }
+
+  public int getRangeEndingMillis() {
+    return rangeEndingMillis;
+  }
+
   public boolean getInvertTimeRange() {
     return invertTimeRange;
   }

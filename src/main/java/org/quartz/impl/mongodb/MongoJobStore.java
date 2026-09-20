@@ -13,12 +13,6 @@ import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamClass;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,6 +22,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
@@ -35,7 +30,6 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.Binary;
 import org.quartz.Calendar;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -49,7 +43,6 @@ import org.quartz.Trigger.TriggerState;
 import org.quartz.TriggerKey;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.impl.matchers.StringMatcher.StringOperatorName;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerSignaler;
@@ -59,10 +52,8 @@ import org.quartz.spi.TriggerFiredResult;
 /**
  * Persistent, cluster-capable {@link JobStore} backed by MongoDB.
  *
- * <p>This is the JDBC job store with collections instead of tables: each job, trigger, and calendar
- * is its own document. Unique indexes on {@code (schedName, name, group)} reject duplicates.
- * Acquire uses {@code findOneAndUpdate} on {@code state=WAITING}, the same compare-and-set JDBC
- * used with {@code UPDATE … WHERE TRIGGER_STATE='WAITING'}.
+ * <p>Jobs and triggers are BSON documents ({@code jobClass} is a string FQCN, fire times are {@link
+ * Instant}). Cluster identity is a per-process lease with TTL, not a durable instance id.
  *
  * <p>Inject an existing {@link MongoClient} (Spring Boot) via {@link #setMongoClient(MongoClient)}
  * and this store will not close it on shutdown. Otherwise it creates a client from {@code
@@ -104,10 +95,10 @@ public class MongoJobStore implements JobStore {
   private MongoCollection<Document> calendars;
   private MongoCollection<Document> pausedTriggerGroupsCol;
   private MongoCollection<Document> pausedJobGroupsCol;
-  private MongoCollection<Document> schedulerState;
+  private MongoCollection<Document> leases;
   private MongoCollection<Document> locks;
   private SchedulerSignaler signaler;
-  private ClassLoadHelper loadHelper;
+  private ClassLoader jobClassLoader;
   private ClusterManager clusterManager;
 
   public String getMongoUri() {
@@ -166,6 +157,10 @@ public class MongoJobStore implements JobStore {
     this.misfireThreshold = misfireThreshold;
   }
 
+  public void setJobClassLoader(ClassLoader jobClassLoader) {
+    this.jobClassLoader = jobClassLoader;
+  }
+
   @Override
   public void setInstanceId(String schedInstId) {
     this.instanceId = schedInstId;
@@ -202,10 +197,11 @@ public class MongoJobStore implements JobStore {
   }
 
   @Override
-  public void initialize(ClassLoadHelper loadHelper, SchedulerSignaler schedSignaler)
-      throws SchedulerConfigException {
-    this.loadHelper = loadHelper;
+  public void initialize(SchedulerSignaler schedSignaler) throws SchedulerConfigException {
     this.signaler = schedSignaler;
+    if (instanceId == null || instanceId.isBlank() || "AUTO".equals(instanceId)) {
+      this.instanceId = UUID.randomUUID().toString();
+    }
     MongoDatabase database = mongoDatabase;
     if (database == null) {
       if (mongoClient == null) {
@@ -225,12 +221,20 @@ public class MongoJobStore implements JobStore {
     calendars = database.getCollection(collectionPrefix + "calendars");
     pausedTriggerGroupsCol = database.getCollection(collectionPrefix + "paused_trigger_groups");
     pausedJobGroupsCol = database.getCollection(collectionPrefix + "paused_job_groups");
-    schedulerState = database.getCollection(collectionPrefix + "scheduler_state");
+    leases = database.getCollection(collectionPrefix + "leases");
     locks = database.getCollection(collectionPrefix + "locks");
     ensureUniqueIndex(jobs, new Document("schedName", 1).append("name", 1).append("group", 1));
     ensureUniqueIndex(triggers, new Document("schedName", 1).append("name", 1).append("group", 1));
     triggers.createIndex(new Document("schedName", 1).append("state", 1).append("nextFireTime", 1));
     triggers.createIndex(new Document("schedName", 1).append("jobName", 1).append("jobGroup", 1));
+    ensureUniqueIndex(leases, new Document("schedName", 1).append("owner", 1));
+    try {
+      leases.createIndex(
+          new Document("expiresAt", 1),
+          new IndexOptions().expireAfter(0L, java.util.concurrent.TimeUnit.SECONDS));
+    } catch (RuntimeException ignored) {
+      // TTL index is optional; recovery still uses leaseExpiresAt on triggers.
+    }
     collapseDuplicateLocks();
     ensureUniqueIndex(locks, new Document("schedName", 1).append("lockName", 1));
     log.info("MongoJobStore initialized on db '{}' (clustered={})", dbName, clustered);
@@ -271,7 +275,7 @@ public class MongoJobStore implements JobStore {
   @Override
   public void schedulerStarted() {
     started.set(true);
-    checkin();
+    renewLease();
     recoverAcquiredTriggers();
     if (clustered) {
       clusterManager = new ClusterManager();
@@ -293,14 +297,14 @@ public class MongoJobStore implements JobStore {
       clusterManager.interrupt();
     }
     try {
+      recoverAcquiredOwnedBy(instanceId);
       if (locks != null) {
         locks.deleteMany(
             Filters.and(Filters.eq("schedName", instanceName), Filters.eq("owner", instanceId)));
       }
-      if (schedulerState != null) {
-        schedulerState.deleteOne(
-            Filters.and(
-                Filters.eq("schedName", instanceName), Filters.eq("instanceId", instanceId)));
+      if (leases != null) {
+        leases.deleteOne(
+            Filters.and(Filters.eq("schedName", instanceName), Filters.eq("owner", instanceId)));
       }
     } catch (RuntimeException ignore) {
       // Client may already be closed on shutdown.
@@ -379,9 +383,9 @@ public class MongoJobStore implements JobStore {
       return null;
     }
     try {
-      return deserialize(doc.get("payload", Binary.class));
+      return jobFrom(doc);
     } catch (RuntimeException e) {
-      throw new JobPersistenceException("Unable to deserialize job '" + jobKey + "'", e);
+      throw new JobPersistenceException("Unable to read job '" + jobKey + "'", e);
     }
   }
 
@@ -390,7 +394,15 @@ public class MongoJobStore implements JobStore {
       throws JobPersistenceException {
     List<JobDetail> out = new ArrayList<>();
     for (Document d : jobs.find(andSched(groupFilter(matcher)))) {
-      out.add(deserialize(d.get("payload", Binary.class)));
+      try {
+        out.add(jobFrom(d));
+      } catch (RuntimeException e) {
+        log.warn(
+            "Skipping job '{}.{}' that cannot be loaded: {}",
+            d.getString("group"),
+            d.getString("name"),
+            e.getMessage());
+      }
     }
     return out;
   }
@@ -430,7 +442,7 @@ public class MongoJobStore implements JobStore {
           if (existing == null) {
             return;
           }
-          OperableTrigger old = deserialize(existing.get("payload", Binary.class));
+          OperableTrigger old = triggerFrom(existing);
           if (!old.getJobKey().equals(newTrigger.getJobKey())) {
             throw new JobPersistenceException(
                 "New trigger is not related to the same job as the old trigger.");
@@ -453,8 +465,12 @@ public class MongoJobStore implements JobStore {
     if (doc == null) {
       return null;
     }
-    OperableTrigger trigger = deserialize(doc.get("payload", Binary.class));
-    return (OperableTrigger) trigger.clone();
+    try {
+      OperableTrigger trigger = triggerFrom(doc);
+      return (OperableTrigger) trigger.clone();
+    } catch (RuntimeException e) {
+      throw new JobPersistenceException("Unable to read trigger '" + triggerKey + "'", e);
+    }
   }
 
   @Override
@@ -498,14 +514,14 @@ public class MongoJobStore implements JobStore {
               filter,
               new Document("schedName", instanceName)
                   .append("name", name)
-                  .append("payload", new Binary(serialize(stored))),
+                  .append("calendar", BsonJobStoreCodec.calendarBody(stored)),
               new ReplaceOptions().upsert(true));
           if (existing != null && updateTriggers) {
             for (Document d :
                 triggers.find(
                     Filters.and(
                         Filters.eq("schedName", instanceName), Filters.eq("calendarName", name)))) {
-              OperableTrigger trigger = deserialize(d.get("payload", Binary.class));
+              OperableTrigger trigger = triggerFrom(d);
               trigger.updateWithNewCalendar(stored, misfireThreshold);
               replaceTriggerDoc(trigger, d.getInteger("state", STATE_WAITING));
             }
@@ -538,7 +554,7 @@ public class MongoJobStore implements JobStore {
   }
 
   @Override
-  public Calendar retrieveCalendar(String calName) {
+  public Calendar retrieveCalendar(String calName) throws JobPersistenceException {
     Document doc =
         calendars
             .find(Filters.and(Filters.eq("schedName", instanceName), Filters.eq("name", calName)))
@@ -546,8 +562,12 @@ public class MongoJobStore implements JobStore {
     if (doc == null) {
       return null;
     }
-    Calendar cal = deserialize(doc.get("payload", Binary.class));
-    return (Calendar) cal.clone();
+    try {
+      Calendar cal = BsonJobStoreCodec.toCalendar(doc.get("calendar", Document.class));
+      return cal == null ? null : (Calendar) cal.clone();
+    } catch (RuntimeException e) {
+      throw new JobPersistenceException("Unable to read calendar '" + calName + "'", e);
+    }
   }
 
   @Override
@@ -614,7 +634,7 @@ public class MongoJobStore implements JobStore {
                 Filters.eq("schedName", instanceName),
                 Filters.eq("jobName", jobKey.getName()),
                 Filters.eq("jobGroup", jobKey.getGroup())))) {
-      OperableTrigger t = deserialize(d.get("payload", Binary.class));
+      OperableTrigger t = triggerFrom(d);
       list.add((OperableTrigger) t.clone());
     }
     return list;
@@ -628,7 +648,7 @@ public class MongoJobStore implements JobStore {
     for (Document d : triggers.find(andSched(groupFilter(triggerMatcher)))) {
       JobKey jobKey = new JobKey(d.getString("jobName"), d.getString("jobGroup"));
       if (jobsInGroup.contains(jobKey)) {
-        OperableTrigger t = deserialize(d.get("payload", Binary.class));
+        OperableTrigger t = triggerFrom(d);
         list.add((OperableTrigger) t.clone());
       }
     }
@@ -652,7 +672,7 @@ public class MongoJobStore implements JobStore {
           if (doc == null || doc.getInteger("state", STATE_WAITING) != STATE_ERROR) {
             return;
           }
-          OperableTrigger trigger = deserialize(doc.get("payload", Binary.class));
+          OperableTrigger trigger = triggerFrom(doc);
           int state = pausedTriggerGroup(triggerKey.getGroup()) ? STATE_PAUSED : STATE_WAITING;
           replaceTriggerDoc(trigger, state);
         });
@@ -799,7 +819,7 @@ public class MongoJobStore implements JobStore {
         () -> {
           Document doc = triggerDoc(trigger.getKey());
           if (doc != null && doc.getInteger("state", STATE_WAITING) == STATE_ACQUIRED) {
-            OperableTrigger stored = deserialize(doc.get("payload", Binary.class));
+            OperableTrigger stored = triggerFrom(doc);
             replaceTriggerDoc(stored, STATE_WAITING);
           }
         });
@@ -826,17 +846,13 @@ public class MongoJobStore implements JobStore {
     if (existing != null && !replaceExisting) {
       throw new ObjectAlreadyExistsException(newJob);
     }
-    Document doc =
-        new Document("schedName", instanceName)
-            .append("name", stored.getKey().getName())
-            .append("group", stored.getKey().getGroup())
-            .append("durable", stored.isDurable())
-            .append("requestsRecovery", stored.requestsRecovery())
-            .append("concurrentDisallowed", stored.isConcurrentExecutionDisallowed())
-            .append("persistJobData", stored.isPersistJobDataAfterExecution())
-            .append(
-                "blocked", existing != null && Boolean.TRUE.equals(existing.getBoolean("blocked")))
-            .append("payload", new Binary(serialize(stored)));
+    Document doc = BsonJobStoreCodec.jobBody(stored);
+    doc.append("schedName", instanceName)
+        .append("durable", stored.isDurable())
+        .append("requestsRecovery", stored.requestsRecovery())
+        .append("concurrentDisallowed", stored.isConcurrentExecutionDisallowed())
+        .append("persistJobData", stored.isPersistJobDataAfterExecution())
+        .append("blocked", existing != null && Boolean.TRUE.equals(existing.getBoolean("blocked")));
     try {
       jobs.replaceOne(jobFilter(stored.getKey()), doc, new ReplaceOptions().upsert(true));
     } catch (MongoWriteException e) {
@@ -917,11 +933,11 @@ public class MongoJobStore implements JobStore {
     if (state == STATE_COMPLETE) {
       return;
     }
-    OperableTrigger trigger = deserialize(doc.get("payload", Binary.class));
+    OperableTrigger trigger = triggerFrom(doc);
     replaceTriggerDoc(trigger, state == STATE_BLOCKED ? STATE_PAUSED_BLOCKED : STATE_PAUSED);
   }
 
-  private void resumeTriggerLocked(TriggerKey triggerKey) {
+  private void resumeTriggerLocked(TriggerKey triggerKey) throws JobPersistenceException {
     Document doc = triggerDoc(triggerKey);
     if (doc == null) {
       return;
@@ -930,7 +946,7 @@ public class MongoJobStore implements JobStore {
     if (state != STATE_PAUSED && state != STATE_PAUSED_BLOCKED) {
       return;
     }
-    OperableTrigger trigger = deserialize(doc.get("payload", Binary.class));
+    OperableTrigger trigger = triggerFrom(doc);
     Document job = jobDoc(trigger.getJobKey());
     int next =
         job != null && Boolean.TRUE.equals(job.getBoolean("blocked"))
@@ -955,9 +971,9 @@ public class MongoJobStore implements JobStore {
       TriggerKey key = new TriggerKey(doc.getString("name"), doc.getString("group"));
       OperableTrigger trigger;
       try {
-        trigger = deserialize(doc.get("payload", Binary.class));
+        trigger = triggerFrom(doc);
       } catch (RuntimeException e) {
-        log.error("Failed to deserialize trigger '{}', moving to ERROR", key, e);
+        log.error("Failed to read trigger '{}', moving to ERROR", key, e);
         markTriggerError(key);
         skipped.add(key);
         continue;
@@ -996,18 +1012,17 @@ public class MongoJobStore implements JobStore {
         continue;
       }
       trigger.setFireInstanceId(String.valueOf(FIRE_IDS.incrementAndGet()));
+      Instant leaseUntil = leaseExpiry();
       Document claimed =
           triggers.findOneAndUpdate(
               Filters.and(triggerFilter(trigger.getKey()), Filters.eq("state", STATE_WAITING)),
               Updates.combine(
                   Updates.set("state", STATE_ACQUIRED),
-                  Updates.set("acquiredBy", instanceId),
-                  Updates.set("payload", new Binary(serialize(trigger))),
+                  Updates.set("leaseOwner", instanceId),
+                  Updates.set("leaseExpiresAt", BsonJobStoreCodec.instant(leaseUntil)),
+                  Updates.set("fireInstanceId", trigger.getFireInstanceId()),
                   Updates.set(
-                      "nextFireTime",
-                      trigger.getNextFireTime() == null
-                          ? null
-                          : trigger.getNextFireTime().toEpochMilli())),
+                      "nextFireTime", BsonJobStoreCodec.instant(trigger.getNextFireTime()))),
               new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER));
       if (claimed == null) {
         continue;
@@ -1031,7 +1046,7 @@ public class MongoJobStore implements JobStore {
       if (doc == null || doc.getInteger("state", STATE_WAITING) != STATE_ACQUIRED) {
         continue;
       }
-      OperableTrigger stored = deserialize(doc.get("payload", Binary.class));
+      OperableTrigger stored = triggerFrom(doc);
       Calendar cal = null;
       if (stored.getCalendarName() != null) {
         cal = retrieveCalendar(stored.getCalendarName());
@@ -1055,7 +1070,7 @@ public class MongoJobStore implements JobStore {
             continue;
           }
           int st = otherDoc.getInteger("state", STATE_WAITING);
-          OperableTrigger ot = deserialize(otherDoc.get("payload", Binary.class));
+          OperableTrigger ot = triggerFrom(otherDoc);
           if (st == STATE_WAITING) {
             replaceTriggerDoc(ot, STATE_BLOCKED);
           } else if (st == STATE_PAUSED) {
@@ -1083,7 +1098,7 @@ public class MongoJobStore implements JobStore {
       throws JobPersistenceException {
     Document jobDoc = jobDoc(jobDetail.getKey());
     if (jobDoc != null) {
-      JobDetail jd = deserialize(jobDoc.get("payload", Binary.class));
+      JobDetail jd = jobFrom(jobDoc);
       if (jd.isPersistJobDataAfterExecution()) {
         JobDataMap newData = jobDetail.getJobDataMap();
         if (newData != null) {
@@ -1101,7 +1116,7 @@ public class MongoJobStore implements JobStore {
             continue;
           }
           int st = otherDoc.getInteger("state", STATE_WAITING);
-          OperableTrigger ot = deserialize(otherDoc.get("payload", Binary.class));
+          OperableTrigger ot = triggerFrom(otherDoc);
           if (st == STATE_BLOCKED) {
             replaceTriggerDoc(ot, STATE_WAITING);
           } else if (st == STATE_PAUSED_BLOCKED) {
@@ -1120,7 +1135,7 @@ public class MongoJobStore implements JobStore {
     if (triggerDoc == null) {
       return;
     }
-    OperableTrigger stored = deserialize(triggerDoc.get("payload", Binary.class));
+    OperableTrigger stored = triggerFrom(triggerDoc);
     if (code == CompletedExecutionInstruction.DELETE_TRIGGER) {
       if (trigger.getNextFireTime() == null) {
         if (stored.getNextFireTime() == null) {
@@ -1157,7 +1172,7 @@ public class MongoJobStore implements JobStore {
     }
   }
 
-  private boolean applyMisfire(OperableTrigger trigger, int state) {
+  private boolean applyMisfire(OperableTrigger trigger, int state) throws JobPersistenceException {
     long misfireTime = System.currentTimeMillis();
     if (!misfireThreshold.isZero()) {
       misfireTime -= misfireThreshold.toMillis();
@@ -1195,9 +1210,10 @@ public class MongoJobStore implements JobStore {
     try {
       withLock(
           () -> {
-            recoverAcquiredOwnedBy(clustered ? instanceId : null);
             if (clustered) {
-              recoverFailedInstances();
+              recoverExpiredAcquisitions();
+            } else {
+              recoverAcquiredOwnedBy(null);
             }
           });
     } catch (JobPersistenceException e) {
@@ -1209,45 +1225,35 @@ public class MongoJobStore implements JobStore {
     Bson owner =
         ownerInstanceId == null
             ? Filters.exists("schedName")
-            : Filters.eq("acquiredBy", ownerInstanceId);
+            : Filters.eq("leaseOwner", ownerInstanceId);
     triggers.updateMany(
         Filters.and(
             Filters.eq("schedName", instanceName), Filters.eq("state", STATE_ACQUIRED), owner),
-        Updates.combine(Updates.set("state", STATE_WAITING), Updates.unset("acquiredBy")));
+        Updates.combine(
+            Updates.set("state", STATE_WAITING),
+            Updates.unset("leaseOwner"),
+            Updates.unset("leaseExpiresAt")));
   }
 
-  /**
-   * Reset ACQUIRED triggers owned by instances that have missed two check-ins, then drop their
-   * scheduler_state row.
-   */
+  /** Reset ACQUIRED triggers whose lease has expired. Does not look up a recycled instance id. */
+  private void recoverExpiredAcquisitions() {
+    Instant now = Instant.now();
+    triggers.updateMany(
+        Filters.and(
+            Filters.eq("schedName", instanceName),
+            Filters.eq("state", STATE_ACQUIRED),
+            Filters.or(
+                Filters.lte("leaseExpiresAt", BsonJobStoreCodec.instant(now)),
+                Filters.exists("leaseExpiresAt", false),
+                Filters.eq("leaseExpiresAt", null))),
+        Updates.combine(
+            Updates.set("state", STATE_WAITING),
+            Updates.unset("leaseOwner"),
+            Updates.unset("leaseExpiresAt")));
+  }
+
   private void recoverFailedInstances() {
-    if (schedulerState == null) {
-      return;
-    }
-    long now = Instant.now().toEpochMilli();
-    for (Document state : schedulerState.find(Filters.eq("schedName", instanceName))) {
-      String otherId = state.getString("instanceId");
-      if (otherId == null || instanceId.equals(otherId)) {
-        continue;
-      }
-      Number last = state.get("lastCheckin", Number.class);
-      if (last == null) {
-        continue;
-      }
-      Number interval = state.get("checkinInterval", Number.class);
-      long timeout =
-          Math.max(
-                  interval != null ? interval.longValue() : clusterCheckinInterval.toMillis(),
-                  1000L)
-              * 2;
-      if (now - last.longValue() <= timeout) {
-        continue;
-      }
-      recoverAcquiredOwnedBy(otherId);
-      schedulerState.deleteOne(
-          Filters.and(Filters.eq("schedName", instanceName), Filters.eq("instanceId", otherId)));
-      log.warn("Recovered acquired triggers for failed instance '{}'", otherId);
-    }
+    recoverExpiredAcquisitions();
   }
 
   private Document nextWaiting(long batchEnd, Set<TriggerKey> skipped) {
@@ -1255,7 +1261,8 @@ public class MongoJobStore implements JobStore {
     parts.add(Filters.eq("schedName", instanceName));
     parts.add(Filters.eq("state", STATE_WAITING));
     parts.add(Filters.ne("nextFireTime", null));
-    parts.add(Filters.lte("nextFireTime", batchEnd));
+    parts.add(
+        Filters.lte("nextFireTime", BsonJobStoreCodec.instant(Instant.ofEpochMilli(batchEnd))));
     if (!skipped.isEmpty()) {
       List<Bson> nor = new ArrayList<>();
       for (TriggerKey key : skipped) {
@@ -1272,18 +1279,7 @@ public class MongoJobStore implements JobStore {
 
   private void insertTrigger(OperableTrigger trigger, int state)
       throws ObjectAlreadyExistsException {
-    Instant nft = trigger.getNextFireTime();
-    Document doc =
-        new Document("schedName", instanceName)
-            .append("name", trigger.getKey().getName())
-            .append("group", trigger.getKey().getGroup())
-            .append("jobName", trigger.getJobKey().getName())
-            .append("jobGroup", trigger.getJobKey().getGroup())
-            .append("state", state)
-            .append("nextFireTime", nft == null ? null : nft.toEpochMilli())
-            .append("priority", trigger.getPriority())
-            .append("calendarName", trigger.getCalendarName())
-            .append("payload", new Binary(serialize(trigger)));
+    Document doc = triggerDocument(trigger, state);
     try {
       triggers.insertOne(doc);
     } catch (MongoWriteException e) {
@@ -1299,20 +1295,45 @@ public class MongoJobStore implements JobStore {
   }
 
   private void replaceTriggerDoc(OperableTrigger trigger, int state) {
-    Instant nft = trigger.getNextFireTime();
     triggers.replaceOne(
         triggerFilter(trigger.getKey()),
-        new Document("schedName", instanceName)
-            .append("name", trigger.getKey().getName())
-            .append("group", trigger.getKey().getGroup())
-            .append("jobName", trigger.getJobKey().getName())
-            .append("jobGroup", trigger.getJobKey().getGroup())
-            .append("state", state)
-            .append("nextFireTime", nft == null ? null : nft.toEpochMilli())
-            .append("priority", trigger.getPriority())
-            .append("calendarName", trigger.getCalendarName())
-            .append("payload", new Binary(serialize(trigger))),
+        triggerDocument(trigger, state),
         new ReplaceOptions().upsert(true));
+  }
+
+  private Document triggerDocument(OperableTrigger trigger, int state) {
+    Document doc = new Document("schedName", instanceName);
+    BsonJobStoreCodec.putTriggerBody(doc, trigger);
+    doc.append("state", state);
+    if (state == STATE_ACQUIRED) {
+      doc.append("leaseOwner", instanceId);
+      doc.append("leaseExpiresAt", BsonJobStoreCodec.instant(leaseExpiry()));
+    }
+    return doc;
+  }
+
+  private JobDetail jobFrom(Document doc) {
+    return BsonJobStoreCodec.toJob(doc, jobClassLoader());
+  }
+
+  private OperableTrigger triggerFrom(Document doc) {
+    return BsonJobStoreCodec.toTrigger(doc);
+  }
+
+  private ClassLoader jobClassLoader() {
+    if (jobClassLoader != null) {
+      return jobClassLoader;
+    }
+    ClassLoader tccl = Thread.currentThread().getContextClassLoader();
+    return tccl != null ? tccl : getClass().getClassLoader();
+  }
+
+  private Instant leaseExpiry() {
+    Duration ttl = clusterCheckinInterval.multipliedBy(2);
+    if (ttl.compareTo(Duration.ofSeconds(30)) < 0) {
+      ttl = Duration.ofSeconds(30);
+    }
+    return Instant.now().plus(ttl);
   }
 
   private Document jobDoc(JobKey key) {
@@ -1447,6 +1468,10 @@ public class MongoJobStore implements JobStore {
     try {
       withLock(op);
     } catch (JobPersistenceException e) {
+      if (isShutdownRace(e)) {
+        log.debug("Ignoring MongoDB access after scheduler halt", e);
+        return;
+      }
       throw new IllegalStateException(e);
     }
   }
@@ -1518,7 +1543,7 @@ public class MongoJobStore implements JobStore {
   }
 
   private boolean isShutdownRace(Throwable error) {
-    if (!started.get() || Thread.currentThread().isInterrupted()) {
+    if (Thread.currentThread().isInterrupted()) {
       return true;
     }
     for (Throwable t = error; t != null; t = t.getCause()) {
@@ -1530,79 +1555,37 @@ public class MongoJobStore implements JobStore {
         return true;
       }
       String message = t.getMessage();
-      if (message != null && message.contains("state should be: open")) {
+      if (message != null
+          && (message.contains("state should be: open")
+              || message.contains("state should be: server session pool is open"))) {
         return true;
       }
     }
-    return false;
+    return !started.get() && Thread.currentThread().isInterrupted();
   }
 
-  private void checkin() {
-    if (schedulerState == null) {
+  private void renewLease() {
+    if (leases == null) {
       return;
     }
-    schedulerState.replaceOne(
-        Filters.and(Filters.eq("schedName", instanceName), Filters.eq("instanceId", instanceId)),
+    Instant expiry = leaseExpiry();
+    leases.replaceOne(
+        Filters.and(Filters.eq("schedName", instanceName), Filters.eq("owner", instanceId)),
         new Document("schedName", instanceName)
-            .append("instanceId", instanceId)
-            .append("lastCheckin", Instant.now().toEpochMilli())
-            .append("checkinInterval", clusterCheckinInterval.toMillis()),
+            .append("owner", instanceId)
+            .append("expiresAt", BsonJobStoreCodec.instant(expiry)),
         new ReplaceOptions().upsert(true));
+    triggers.updateMany(
+        Filters.and(
+            Filters.eq("schedName", instanceName),
+            Filters.eq("state", STATE_ACQUIRED),
+            Filters.eq("leaseOwner", instanceId)),
+        Updates.set("leaseExpiresAt", BsonJobStoreCodec.instant(expiry)));
   }
 
   @FunctionalInterface
   private interface PersistedOp {
     void run() throws JobPersistenceException;
-  }
-
-  private static byte[] serialize(Object value) {
-    try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(bos)) {
-      oos.writeObject(value);
-      return bos.toByteArray();
-    } catch (Exception e) {
-      throw new IllegalStateException("Unable to serialize scheduling object", e);
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private <T> T deserialize(Binary binary) {
-    if (binary == null) {
-      return null;
-    }
-    try (ObjectInputStream ois =
-        new JobStoreObjectInputStream(new ByteArrayInputStream(binary.getData()), loadHelper)) {
-      return (T) ois.readObject();
-    } catch (Exception e) {
-      throw new IllegalStateException(
-          "Unable to deserialize scheduling object"
-              + (e.getMessage() == null ? "" : ": " + e.getMessage()),
-          e);
-    }
-  }
-
-  private static final class JobStoreObjectInputStream extends ObjectInputStream {
-    private final ClassLoadHelper loadHelper;
-
-    private JobStoreObjectInputStream(ByteArrayInputStream in, ClassLoadHelper loadHelper)
-        throws IOException {
-      super(in);
-      this.loadHelper = loadHelper;
-    }
-
-    @Override
-    protected Class<?> resolveClass(ObjectStreamClass desc)
-        throws IOException, ClassNotFoundException {
-      String name = desc.getName();
-      if (loadHelper != null) {
-        try {
-          return loadHelper.loadClass(name);
-        } catch (ClassNotFoundException ignored) {
-          // Fall through to the stream default (TCCL / caller loader).
-        }
-      }
-      return super.resolveClass(desc);
-    }
   }
 
   private class ClusterManager extends Thread {
@@ -1615,13 +1598,18 @@ public class MongoJobStore implements JobStore {
       while (started.get()) {
         try {
           Thread.sleep(clusterCheckinInterval.toMillis());
-          checkin();
+          if (!started.get()) {
+            break;
+          }
+          renewLease();
           recoverFailedInstances();
         } catch (InterruptedException e) {
-          interrupt();
+          Thread.currentThread().interrupt();
           break;
         } catch (RuntimeException e) {
-          log.error("Cluster check-in failed", e);
+          if (started.get() && !Thread.currentThread().isInterrupted()) {
+            log.error("Cluster lease renewal failed", e);
+          }
         }
       }
     }

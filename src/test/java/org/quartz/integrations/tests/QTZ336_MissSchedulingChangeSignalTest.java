@@ -24,7 +24,6 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
-import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,17 +56,10 @@ class QTZ336_MissSchedulingChangeSignalTest {
 
   @Test
   void simpleScheduleAlwaysFiredUnder20s() throws Exception {
-    Properties properties = new Properties();
-    InputStream propertiesIs = getClass().getResourceAsStream("/quartz.properties");
-    try {
-      properties.load(propertiesIs);
-    } finally {
-      propertiesIs.close();
-    }
+    Properties properties = StdSchedulerFactory.defaultProperties();
     properties.setProperty(
-        "org.quartz.scheduler.name",
+        StdSchedulerFactory.PROP_SCHED_INSTANCE_NAME,
         "QTZ336_MissSchedulingChangeSignalTest.simpleScheduleAlwaysFiredUnder20s");
-    properties.setProperty("org.quartz.scheduler.skipUpdateCheck", "true");
     MongoSchedulerSupport.applyJobStore(properties);
     SchedulerFactory sf = new StdSchedulerFactory(properties);
     Scheduler sched = sf.getScheduler();

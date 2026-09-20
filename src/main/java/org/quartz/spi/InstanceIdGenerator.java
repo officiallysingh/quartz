@@ -20,11 +20,8 @@ package org.quartz.spi;
 import org.quartz.SchedulerException;
 
 /**
- * An InstanceIdGenerator is responsible for generating the clusterwide unique instance id for a
- * <code>Scheduler</code> node.
- *
- * <p>This interface may be of use to those wishing to have specific control over the mechanism by
- * which the <code>Scheduler</code> instances in their application are named.
+ * An InstanceIdGenerator produces the per-process lease owner id for a scheduler node. It is not a
+ * durable cluster identity; recovery uses lease expiry.
  *
  * @see org.quartz.simpl.SimpleInstanceIdGenerator
  */

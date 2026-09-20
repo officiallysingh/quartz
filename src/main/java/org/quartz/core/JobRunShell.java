@@ -120,9 +120,10 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
           se);
       throw se;
     } catch (Throwable ncdfe) { // such as NoClassDefFoundError
+      Class<? extends Job> jobClass = jobDetail.getJobClass();
+      String className = jobClass == null ? "null" : jobClass.getName();
       SchedulerException se =
-          new SchedulerException(
-              "Problem instantiating class '" + jobDetail.getJobClass().getName() + "' - ", ncdfe);
+          new SchedulerException("Problem instantiating class '" + className + "' - ", ncdfe);
       sched.notifySchedulerListenersError(
           "An error occurred instantiating job to be executed. job= '" + jobDetail.getKey() + "'",
           se);
@@ -263,6 +264,21 @@ public class JobRunShell extends SchedulerListenerSupport implements Runnable {
 
     } finally {
       qs.removeInternalSchedulerListener(this);
+      closeJobIfNeeded();
+    }
+  }
+
+  private void closeJobIfNeeded() {
+    if (jec == null) {
+      return;
+    }
+    Job job = jec.getJobInstance();
+    if (job instanceof AutoCloseable closeable) {
+      try {
+        closeable.close();
+      } catch (Exception e) {
+        log.warn("Error destroying job instance {}", jec.getJobDetail().getKey(), e);
+      }
     }
   }
 

@@ -43,11 +43,6 @@ public abstract class AbstractSchedulerTest {
   private static final String DATE_STAMPS = "DATE_STAMPS";
   private static final String JOB_THREAD = "JOB_THREAD";
 
-  @SuppressWarnings("deprecation")
-  public static class TestStatefulJob implements StatefulJob {
-    public void execute(JobExecutionContext context) throws JobExecutionException {}
-  }
-
   public static class TestJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {}
   }

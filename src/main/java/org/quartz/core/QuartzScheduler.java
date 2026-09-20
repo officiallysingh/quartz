@@ -64,7 +64,6 @@ import org.quartz.spi.JobFactory;
 import org.quartz.spi.OperableTrigger;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.SchedulerSignaler;
-import org.quartz.spi.ThreadExecutor;
 import org.slf4j.Logger;
 
 /**
@@ -146,8 +145,7 @@ public class QuartzScheduler {
     }
 
     this.schedThread = new QuartzSchedulerThread(this, resources);
-    ThreadExecutor schedThreadExecutor = resources.getThreadExecutor();
-    schedThreadExecutor.execute(this.schedThread);
+    this.schedThread.start();
     if (idleWaitTime != null && !idleWaitTime.isZero() && !idleWaitTime.isNegative()) {
       this.schedThread.setIdleWaitTime(idleWaitTime);
     }
@@ -813,7 +811,6 @@ public class QuartzScheduler {
    * Trigger the identified <code>{@link org.quartz.Job}</code> (execute it now) - with a
    * non-volatile trigger.
    */
-  @SuppressWarnings("deprecation")
   public void triggerJob(JobKey jobKey, JobDataMap data) throws SchedulerException {
     validateState();
 

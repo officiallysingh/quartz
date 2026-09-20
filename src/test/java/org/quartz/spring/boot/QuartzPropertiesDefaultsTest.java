@@ -15,8 +15,9 @@ class QuartzPropertiesDefaultsTest {
     assertEquals("qrtz_", quartz.getProperty("org.quartz.jobStore.collectionPrefix"));
     assertEquals("10", quartz.getProperty("org.quartz.threadPool.threadCount"));
     assertEquals(
-        StdSchedulerFactory.DEFAULT_INSTANCE_ID,
+        StdSchedulerFactory.AUTO_GENERATE_INSTANCE_ID,
         quartz.getProperty(StdSchedulerFactory.PROP_SCHED_INSTANCE_ID));
+    assertEquals("true", quartz.getProperty("org.quartz.jobStore.isClustered"));
     assertEquals("test", quartz.getProperty("org.quartz.jobStore.dbName"));
   }
 

@@ -35,7 +35,7 @@ import org.quartz.SchedulerException;
  *
  * <p>If you need direct access your plugin, you can have it explicitly put a reference to itself in
  * the <code>Scheduler</code>'s <code>SchedulerContext</code> as part of its <code>
- * {@link #initialize(String, Scheduler, ClassLoadHelper)}</code> method.
+ * {@link #initialize(String, Scheduler)}</code> method.
  *
  * @author James House
  */
@@ -61,11 +61,9 @@ public interface SchedulerPlugin {
    *
    * @param name The name by which the plugin is identified.
    * @param scheduler The scheduler to which the plugin is registered.
-   * @param loadHelper The classLoadHelper the <code>SchedulerFactory</code> is actually using
    * @throws org.quartz.SchedulerConfigException if there is an error initializing.
    */
-  void initialize(String name, Scheduler scheduler, ClassLoadHelper loadHelper)
-      throws SchedulerException;
+  void initialize(String name, Scheduler scheduler) throws SchedulerException;
 
   /**
    * Called when the associated <code>Scheduler</code> is started, in order to let the plug-in know

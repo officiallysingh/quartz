@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
-import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
 
 /**
@@ -58,10 +57,6 @@ public class QuartzSchedulerResources {
   private final List<SchedulerPlugin> schedulerPlugins = new ArrayList<>(10);
 
   private boolean makeSchedulerThreadDaemon = false;
-
-  private boolean threadsInheritInitializersClassLoadContext = false;
-
-  private ThreadExecutor threadExecutor;
 
   private Duration batchTimeWindow = Duration.ZERO;
 
@@ -251,33 +246,6 @@ public class QuartzSchedulerResources {
    */
   public void setMakeSchedulerThreadDaemon(boolean makeSchedulerThreadDaemon) {
     this.makeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
-  }
-
-  /**
-   * Get whether to set the class load context of spawned threads to that of the initializing
-   * thread.
-   */
-  public boolean isThreadsInheritInitializersClassLoadContext() {
-    return threadsInheritInitializersClassLoadContext;
-  }
-
-  /**
-   * Set whether to set the class load context of spawned threads to that of the initializing
-   * thread.
-   */
-  public void setThreadsInheritInitializersClassLoadContext(
-      boolean threadsInheritInitializersClassLoadContext) {
-    this.threadsInheritInitializersClassLoadContext = threadsInheritInitializersClassLoadContext;
-  }
-
-  /** Get the ThreadExecutor which runs the QuartzSchedulerThread */
-  public ThreadExecutor getThreadExecutor() {
-    return threadExecutor;
-  }
-
-  /** Set the ThreadExecutor which runs the QuartzSchedulerThread */
-  public void setThreadExecutor(ThreadExecutor threadExecutor) {
-    this.threadExecutor = threadExecutor;
   }
 
   public Duration getBatchTimeWindow() {

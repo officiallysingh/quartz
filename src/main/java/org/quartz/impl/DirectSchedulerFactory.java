@@ -29,11 +29,8 @@ import org.quartz.SchedulerFactory;
 import org.quartz.core.JobRunShellFactory;
 import org.quartz.core.QuartzScheduler;
 import org.quartz.core.QuartzSchedulerResources;
-import org.quartz.simpl.CascadingClassLoadHelper;
-import org.quartz.spi.ClassLoadHelper;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
-import org.quartz.spi.ThreadExecutor;
 import org.quartz.spi.ThreadPool;
 import org.slf4j.Logger;
 
@@ -70,8 +67,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
   public static final String DEFAULT_INSTANCE_ID = "SIMPLE_NON_CLUSTERED";
 
   public static final String DEFAULT_SCHEDULER_NAME = "SimpleQuartzScheduler";
-
-  private static final DefaultThreadExecutor DEFAULT_THREAD_EXECUTOR = new DefaultThreadExecutor();
 
   private static final int DEFAULT_BATCH_MAX_SIZE = 1;
 
@@ -158,7 +153,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
         schedulerName,
         schedulerInstanceId,
         threadPool,
-        DEFAULT_THREAD_EXECUTOR,
         jobStore,
         schedulerPluginMap,
         idleWaitTime,
@@ -172,7 +166,6 @@ public class DirectSchedulerFactory implements SchedulerFactory {
       String schedulerName,
       String schedulerInstanceId,
       ThreadPool threadPool,
-      ThreadExecutor threadExecutor,
       JobStore jobStore,
       Map<String, SchedulerPlugin> schedulerPluginMap,
       Duration idleWaitTime,
@@ -184,6 +177,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
     JobRunShellFactory jrsf = new StdJobRunShellFactory();
 
     threadPool.setInstanceName(schedulerName);
+    threadPool.setInstanceId(schedulerInstanceId);
     threadPool.initialize();
 
     QuartzSchedulerResources qrs = new QuartzSchedulerResources();
@@ -191,10 +185,8 @@ public class DirectSchedulerFactory implements SchedulerFactory {
     qrs.setName(schedulerName);
     qrs.setInstanceId(schedulerInstanceId);
     qrs.setMakeSchedulerThreadDaemon(makeSchedThreadDaemon);
-    SchedulerDetailsSetter.setDetails(threadPool, schedulerName, schedulerInstanceId);
     qrs.setJobRunShellFactory(jrsf);
     qrs.setThreadPool(threadPool);
-    qrs.setThreadExecutor(threadExecutor);
     qrs.setJobStore(jobStore);
     qrs.setMaxBatchSize(maxBatchSize);
     qrs.setBatchTimeWindow(batchTimeWindow);
@@ -207,12 +199,9 @@ public class DirectSchedulerFactory implements SchedulerFactory {
 
     QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime);
 
-    ClassLoadHelper cch = new CascadingClassLoadHelper();
-    cch.initialize();
-
-    SchedulerDetailsSetter.setDetails(jobStore, schedulerName, schedulerInstanceId);
-
-    jobStore.initialize(cch, qs.getSchedulerSignaler());
+    jobStore.setInstanceName(schedulerName);
+    jobStore.setInstanceId(schedulerInstanceId);
+    jobStore.initialize(qs.getSchedulerSignaler());
 
     Scheduler scheduler = new StdScheduler(qs);
 
@@ -222,7 +211,7 @@ public class DirectSchedulerFactory implements SchedulerFactory {
 
     if (schedulerPluginMap != null) {
       for (Entry<String, SchedulerPlugin> pluginEntry : schedulerPluginMap.entrySet()) {
-        pluginEntry.getValue().initialize(pluginEntry.getKey(), scheduler, cch);
+        pluginEntry.getValue().initialize(pluginEntry.getKey(), scheduler);
       }
     }
 
