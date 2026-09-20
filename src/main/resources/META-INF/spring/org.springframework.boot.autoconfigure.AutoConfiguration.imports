@@ -1,1 +1,4 @@
 org.quartz.spring.boot.QuartzAutoConfiguration
+org.quartz.spring.boot.QuartzEndpointAutoConfiguration
+org.quartz.spring.boot.QuartzHealthContributorAutoConfiguration
+org.quartz.spring.boot.QuartzMetricsAutoConfiguration

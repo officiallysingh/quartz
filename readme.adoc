@@ -38,6 +38,58 @@ quartz:
 Declare `JobDetail`, `Trigger`, and `Calendar` beans in the app; they are registered automatically.
 Jobs are constructed per fire and autowired from the Spring context.
 
+== Actuator, health and metrics
+
+Add `spring-boot-starter-actuator` and the auto-configuration contributes the standard Spring Boot
+monitoring for the scheduler. Nothing else is needed; each piece backs off when its classes, the
+`Scheduler` bean, or a `MeterRegistry` is missing, and any bean you declare yourself wins.
+
+*Health* — `quartz` contributes to `/actuator/health`. It reads scheduler state only (Mongo
+availability is the Mongo indicator's job): `UP` when started, `OUT_OF_SERVICE` when not started yet
+or in standby, `DOWN` once shut down. Details are the scheduler name and instance id, job store class,
+whether it is clustered, standby flag, thread pool size, jobs executed, jobs executing, and
+`runningSince`. Turn it off with `management.health.quartz.enabled=false`.
+
+*Endpoint* — `/actuator/quartz` mirrors Spring Boot's own Quartz endpoint (`jobs`, `triggers`, group
+summaries, job and trigger details, and `POST .../jobs/{group}/{name}` with `{"state":"running"}` to
+run a job now). Fire times are ISO instants here rather than epoch millis, but intervals are still
+reported in milliseconds. Expose it and optionally unmask job data:
+
+```
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,quartz
+  endpoint:
+    quartz:
+      show-values: when-authorized   # never (default), always, when-authorized
+      roles: [ ADMIN ]
+```
+
+*Metrics* — Micrometer meters are registered when a `MeterRegistry` is present:
+
+|===
+| Meter | Type | Tags
+
+| `quartz.scheduler.jobs.executed` | counter | `scheduler`
+| `quartz.scheduler.jobs.executing` | gauge | `scheduler`
+| `quartz.scheduler.threads` | gauge | `scheduler`
+| `quartz.scheduler.running` | gauge (1/0) | `scheduler`
+| `quartz.job.execution` | timer | `group`, `job`, `outcome`, `exception`
+| `quartz.job.active` | long task timer | `group`, `job`
+| `quartz.job.vetoed` | counter | `group`, `job`
+| `quartz.trigger.misfires` | counter | `group`, `trigger`
+|===
+
+Scheduler meters read in-memory state, so scraping them does not query Mongo. Job meters are tagged
+per job; with many uniquely named jobs, drop the tags with a `MeterFilter` or disable them with
+`management.metrics.enable.quartz.job=false` (`management.metrics.enable.quartz=false` disables all
+of them).
+
+Keep the official `spring-boot-quartz` module off the classpath: it registers a second endpoint with
+id `quartz`, and its endpoint is compiled against `java.util.Date` fire times.
+
 Build:
 
 ```
