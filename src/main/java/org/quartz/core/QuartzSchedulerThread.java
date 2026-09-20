@@ -349,6 +349,9 @@ public class QuartzSchedulerThread extends Thread {
                 List<TriggerFiredResult> res = qsRsrcs.getJobStore().triggersFired(triggers);
                 if (res != null) bundles = res;
               } catch (SchedulerException se) {
+                if (halted.get() || Thread.currentThread().isInterrupted()) {
+                  break;
+                }
                 qs.notifySchedulerListenersError(
                     "An error occurred while firing triggers '" + triggers + "'", se);
                 // QTZ-179 : a problem occurred interacting with the triggers from the db
