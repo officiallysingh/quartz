@@ -55,7 +55,22 @@ public interface Trigger extends Serializable, Cloneable, Comparable<Trigger> {
     PAUSED,
     COMPLETE,
     ERROR,
-    BLOCKED
+    BLOCKED,
+    /**
+     * Ready to fire. Stored as this name; {@link Scheduler#getTriggerState} reports {@link
+     * #NORMAL}.
+     */
+    WAITING,
+    /**
+     * Claimed by a scheduler node. Stored as this name; {@link Scheduler#getTriggerState} reports
+     * {@link #NORMAL}.
+     */
+    ACQUIRED,
+    /**
+     * Paused while the job is blocked. Stored as this name; {@link Scheduler#getTriggerState}
+     * reports {@link #PAUSED}.
+     */
+    PAUSED_BLOCKED
   }
 
   /**

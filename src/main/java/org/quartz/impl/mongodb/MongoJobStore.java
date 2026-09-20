@@ -66,15 +66,9 @@ public class MongoJobStore implements JobStore {
   public static final String DEFAULT_DB = "quartz";
   public static final String DEFAULT_COLLECTION_PREFIX = "qrtz_";
 
-  static final int STATE_WAITING = 0;
-  static final int STATE_ACQUIRED = 1;
-  static final int STATE_COMPLETE = 3;
-  static final int STATE_PAUSED = 4;
-  static final int STATE_BLOCKED = 5;
-  static final int STATE_PAUSED_BLOCKED = 6;
-  static final int STATE_ERROR = 7;
-
   private static final AtomicLong FIRE_IDS = new AtomicLong(System.currentTimeMillis());
+  private static final String TRIGGER_ACCESS = "TRIGGER_ACCESS";
+  private static final String LOCK_FAILURE_MESSAGE = "Could not obtain MongoDB cluster lock";
 
   private final ReentrantLock localLock = new ReentrantLock(true);
   private final AtomicBoolean started = new AtomicBoolean();
@@ -84,6 +78,7 @@ public class MongoJobStore implements JobStore {
   private String collectionPrefix = DEFAULT_COLLECTION_PREFIX;
   private boolean clustered;
   private Duration clusterCheckinInterval = Duration.ofSeconds(15);
+  private Duration clusterLockWait;
   private Duration misfireThreshold = Duration.ofSeconds(60);
   private String instanceId = "NON_CLUSTERED";
   private String instanceName = "QuartzScheduler";
@@ -150,6 +145,18 @@ public class MongoJobStore implements JobStore {
     this.clusterCheckinInterval = clusterCheckinInterval;
   }
 
+  /**
+   * How long {@code withLock} waits for {@code TRIGGER_ACCESS}. Default is the lock expiry window
+   * (at least 30s) so a live node can wait out another node's critical section or steal an expired
+   * lock. Tests may shorten this.
+   */
+  public void setClusterLockWait(Duration clusterLockWait) {
+    if (clusterLockWait != null && clusterLockWait.isNegative()) {
+      throw new IllegalArgumentException("clusterLockWait must be >= 0");
+    }
+    this.clusterLockWait = clusterLockWait;
+  }
+
   public void setMisfireThreshold(Duration misfireThreshold) {
     if (misfireThreshold == null || misfireThreshold.isZero() || misfireThreshold.isNegative()) {
       throw new IllegalArgumentException("misfireThreshold must be > 0");
@@ -193,7 +200,7 @@ public class MongoJobStore implements JobStore {
 
   @Override
   public Duration getAcquireRetryDelay(int failureCount) {
-    return Duration.ofMillis(20);
+    return clustered ? Duration.ofSeconds(1) : Duration.ofMillis(20);
   }
 
   @Override
@@ -277,6 +284,7 @@ public class MongoJobStore implements JobStore {
     started.set(true);
     renewLease();
     recoverAcquiredTriggers();
+    recoverErrorTriggersIfJobLoads();
     if (clustered) {
       clusterManager = new ClusterManager();
       clusterManager.setDaemon(true);
@@ -523,7 +531,7 @@ public class MongoJobStore implements JobStore {
                         Filters.eq("schedName", instanceName), Filters.eq("calendarName", name)))) {
               OperableTrigger trigger = triggerFrom(d);
               trigger.updateWithNewCalendar(stored, misfireThreshold);
-              replaceTriggerDoc(trigger, d.getInteger("state", STATE_WAITING));
+              replaceTriggerDoc(trigger, storedState(d));
             }
           }
         });
@@ -661,7 +669,7 @@ public class MongoJobStore implements JobStore {
     if (doc == null) {
       return TriggerState.NONE;
     }
-    return toPublicState(doc.getInteger("state", STATE_WAITING));
+    return toPublicState(storedState(doc));
   }
 
   @Override
@@ -669,11 +677,14 @@ public class MongoJobStore implements JobStore {
     withLock(
         () -> {
           Document doc = triggerDoc(triggerKey);
-          if (doc == null || doc.getInteger("state", STATE_WAITING) != STATE_ERROR) {
+          if (doc == null || storedState(doc) != TriggerState.ERROR) {
             return;
           }
           OperableTrigger trigger = triggerFrom(doc);
-          int state = pausedTriggerGroup(triggerKey.getGroup()) ? STATE_PAUSED : STATE_WAITING;
+          TriggerState state =
+              pausedTriggerGroup(triggerKey.getGroup())
+                  ? TriggerState.PAUSED
+                  : TriggerState.WAITING;
           replaceTriggerDoc(trigger, state);
         });
   }
@@ -818,9 +829,9 @@ public class MongoJobStore implements JobStore {
     withLockUnchecked(
         () -> {
           Document doc = triggerDoc(trigger.getKey());
-          if (doc != null && doc.getInteger("state", STATE_WAITING) == STATE_ACQUIRED) {
+          if (doc != null && storedState(doc) == TriggerState.ACQUIRED) {
             OperableTrigger stored = triggerFrom(doc);
-            replaceTriggerDoc(stored, STATE_WAITING);
+            replaceTriggerDoc(stored, TriggerState.WAITING);
           }
         });
   }
@@ -877,18 +888,18 @@ public class MongoJobStore implements JobStore {
       removeTriggerLocked(newTrigger.getKey(), false);
     }
     OperableTrigger stored = (OperableTrigger) newTrigger.clone();
-    int state = STATE_WAITING;
+    TriggerState state = TriggerState.WAITING;
     if (pausedTriggerGroup(stored.getKey().getGroup())
         || pausedJobGroup(stored.getJobKey().getGroup())) {
-      state = STATE_PAUSED;
+      state = TriggerState.PAUSED;
       Document job = jobDoc(stored.getJobKey());
       if (job != null && Boolean.TRUE.equals(job.getBoolean("blocked"))) {
-        state = STATE_PAUSED_BLOCKED;
+        state = TriggerState.PAUSED_BLOCKED;
       }
     } else {
       Document job = jobDoc(stored.getJobKey());
       if (job != null && Boolean.TRUE.equals(job.getBoolean("blocked"))) {
-        state = STATE_BLOCKED;
+        state = TriggerState.BLOCKED;
       }
     }
     insertTrigger(stored, state);
@@ -929,12 +940,13 @@ public class MongoJobStore implements JobStore {
     if (doc == null) {
       return;
     }
-    int state = doc.getInteger("state", STATE_WAITING);
-    if (state == STATE_COMPLETE) {
+    TriggerState state = storedState(doc);
+    if (state == TriggerState.COMPLETE) {
       return;
     }
     OperableTrigger trigger = triggerFrom(doc);
-    replaceTriggerDoc(trigger, state == STATE_BLOCKED ? STATE_PAUSED_BLOCKED : STATE_PAUSED);
+    replaceTriggerDoc(
+        trigger, state == TriggerState.BLOCKED ? TriggerState.PAUSED_BLOCKED : TriggerState.PAUSED);
   }
 
   private void resumeTriggerLocked(TriggerKey triggerKey) throws JobPersistenceException {
@@ -942,16 +954,16 @@ public class MongoJobStore implements JobStore {
     if (doc == null) {
       return;
     }
-    int state = doc.getInteger("state", STATE_WAITING);
-    if (state != STATE_PAUSED && state != STATE_PAUSED_BLOCKED) {
+    TriggerState state = storedState(doc);
+    if (state != TriggerState.PAUSED && state != TriggerState.PAUSED_BLOCKED) {
       return;
     }
     OperableTrigger trigger = triggerFrom(doc);
     Document job = jobDoc(trigger.getJobKey());
-    int next =
+    TriggerState next =
         job != null && Boolean.TRUE.equals(job.getBoolean("blocked"))
-            ? STATE_BLOCKED
-            : STATE_WAITING;
+            ? TriggerState.BLOCKED
+            : TriggerState.WAITING;
     replaceTriggerDoc(trigger, next);
     applyMisfire(trigger, next);
   }
@@ -978,7 +990,7 @@ public class MongoJobStore implements JobStore {
         skipped.add(key);
         continue;
       }
-      int state = doc.getInteger("state", STATE_WAITING);
+      TriggerState state = storedState(doc);
       if (applyMisfire(trigger, state)) {
         continue;
       }
@@ -995,11 +1007,10 @@ public class MongoJobStore implements JobStore {
         job = retrieveJob(trigger.getJobKey());
       } catch (JobPersistenceException e) {
         log.error(
-            "Failed to load job '{}' for trigger '{}', moving trigger to ERROR",
+            "Failed to load job '{}' for trigger '{}'; skipping until the class is available",
             trigger.getJobKey(),
             key,
             e);
-        replaceTriggerDoc(trigger, STATE_ERROR);
         skipped.add(key);
         continue;
       }
@@ -1015,9 +1026,9 @@ public class MongoJobStore implements JobStore {
       Instant leaseUntil = leaseExpiry();
       Document claimed =
           triggers.findOneAndUpdate(
-              Filters.and(triggerFilter(trigger.getKey()), Filters.eq("state", STATE_WAITING)),
+              Filters.and(triggerFilter(trigger.getKey()), stateEq(TriggerState.WAITING)),
               Updates.combine(
-                  Updates.set("state", STATE_ACQUIRED),
+                  Updates.set("state", TriggerState.ACQUIRED.name()),
                   Updates.set("leaseOwner", instanceId),
                   Updates.set("leaseExpiresAt", BsonJobStoreCodec.instant(leaseUntil)),
                   Updates.set("fireInstanceId", trigger.getFireInstanceId()),
@@ -1043,7 +1054,7 @@ public class MongoJobStore implements JobStore {
     List<TriggerFiredResult> results = new ArrayList<>();
     for (OperableTrigger trigger : firedTriggers) {
       Document doc = triggerDoc(trigger.getKey());
-      if (doc == null || doc.getInteger("state", STATE_WAITING) != STATE_ACQUIRED) {
+      if (doc == null || storedState(doc) != TriggerState.ACQUIRED) {
         continue;
       }
       OperableTrigger stored = triggerFrom(doc);
@@ -1057,7 +1068,7 @@ public class MongoJobStore implements JobStore {
       Instant prevFireTime = trigger.getPreviousFireTime();
       stored.triggered(cal);
       trigger.triggered(cal);
-      replaceTriggerDoc(stored, STATE_WAITING);
+      replaceTriggerDoc(stored, TriggerState.WAITING);
       JobDetail job = retrieveJob(stored.getJobKey());
       if (job == null) {
         continue;
@@ -1069,12 +1080,12 @@ public class MongoJobStore implements JobStore {
           if (otherDoc == null) {
             continue;
           }
-          int st = otherDoc.getInteger("state", STATE_WAITING);
+          TriggerState st = storedState(otherDoc);
           OperableTrigger ot = triggerFrom(otherDoc);
-          if (st == STATE_WAITING) {
-            replaceTriggerDoc(ot, STATE_BLOCKED);
-          } else if (st == STATE_PAUSED) {
-            replaceTriggerDoc(ot, STATE_PAUSED_BLOCKED);
+          if (st == TriggerState.WAITING) {
+            replaceTriggerDoc(ot, TriggerState.BLOCKED);
+          } else if (st == TriggerState.PAUSED) {
+            replaceTriggerDoc(ot, TriggerState.PAUSED_BLOCKED);
           }
         }
       }
@@ -1115,12 +1126,12 @@ public class MongoJobStore implements JobStore {
           if (otherDoc == null) {
             continue;
           }
-          int st = otherDoc.getInteger("state", STATE_WAITING);
+          TriggerState st = storedState(otherDoc);
           OperableTrigger ot = triggerFrom(otherDoc);
-          if (st == STATE_BLOCKED) {
-            replaceTriggerDoc(ot, STATE_WAITING);
-          } else if (st == STATE_PAUSED_BLOCKED) {
-            replaceTriggerDoc(ot, STATE_PAUSED);
+          if (st == TriggerState.BLOCKED) {
+            replaceTriggerDoc(ot, TriggerState.WAITING);
+          } else if (st == TriggerState.PAUSED_BLOCKED) {
+            replaceTriggerDoc(ot, TriggerState.PAUSED);
           }
         }
         if (signaler != null) {
@@ -1148,31 +1159,32 @@ public class MongoJobStore implements JobStore {
         }
       }
     } else if (code == CompletedExecutionInstruction.SET_TRIGGER_COMPLETE) {
-      replaceTriggerDoc(stored, STATE_COMPLETE);
+      replaceTriggerDoc(stored, TriggerState.COMPLETE);
       if (signaler != null) {
         signaler.signalSchedulingChange(0L);
       }
     } else if (code == CompletedExecutionInstruction.SET_TRIGGER_ERROR) {
       log.info("Trigger {} set to ERROR state.", trigger.getKey());
-      replaceTriggerDoc(stored, STATE_ERROR);
+      replaceTriggerDoc(stored, TriggerState.ERROR);
       if (signaler != null) {
         signaler.signalSchedulingChange(0L);
       }
     } else if (code == CompletedExecutionInstruction.SET_ALL_JOB_TRIGGERS_ERROR) {
       log.info("All triggers of Job {} set to ERROR state.", trigger.getJobKey());
-      setAllTriggersOfJobToState(trigger.getJobKey(), STATE_ERROR);
+      setAllTriggersOfJobToState(trigger.getJobKey(), TriggerState.ERROR);
       if (signaler != null) {
         signaler.signalSchedulingChange(0L);
       }
     } else if (code == CompletedExecutionInstruction.SET_ALL_JOB_TRIGGERS_COMPLETE) {
-      setAllTriggersOfJobToState(trigger.getJobKey(), STATE_COMPLETE);
+      setAllTriggersOfJobToState(trigger.getJobKey(), TriggerState.COMPLETE);
       if (signaler != null) {
         signaler.signalSchedulingChange(0L);
       }
     }
   }
 
-  private boolean applyMisfire(OperableTrigger trigger, int state) throws JobPersistenceException {
+  private boolean applyMisfire(OperableTrigger trigger, TriggerState state)
+      throws JobPersistenceException {
     long misfireTime = System.currentTimeMillis();
     if (!misfireThreshold.isZero()) {
       misfireTime -= misfireThreshold.toMillis();
@@ -1190,17 +1202,17 @@ public class MongoJobStore implements JobStore {
     }
     trigger.updateAfterMisfire(cal);
     if (trigger.getNextFireTime() == null) {
-      replaceTriggerDoc(trigger, STATE_COMPLETE);
+      replaceTriggerDoc(trigger, TriggerState.COMPLETE);
       if (signaler != null) {
         signaler.notifySchedulerListenersFinalized(trigger);
       }
       return true;
     }
-    replaceTriggerDoc(trigger, state == STATE_ACQUIRED ? STATE_WAITING : state);
+    replaceTriggerDoc(trigger, state == TriggerState.ACQUIRED ? TriggerState.WAITING : state);
     return !tnft.equals(trigger.getNextFireTime());
   }
 
-  private void setAllTriggersOfJobToState(JobKey jobKey, int state) {
+  private void setAllTriggersOfJobToState(JobKey jobKey, TriggerState state) {
     for (OperableTrigger trigger : getTriggersForJob(jobKey)) {
       replaceTriggerDoc(trigger, state);
     }
@@ -1227,10 +1239,9 @@ public class MongoJobStore implements JobStore {
             ? Filters.exists("schedName")
             : Filters.eq("leaseOwner", ownerInstanceId);
     triggers.updateMany(
-        Filters.and(
-            Filters.eq("schedName", instanceName), Filters.eq("state", STATE_ACQUIRED), owner),
+        Filters.and(Filters.eq("schedName", instanceName), stateEq(TriggerState.ACQUIRED), owner),
         Updates.combine(
-            Updates.set("state", STATE_WAITING),
+            Updates.set("state", TriggerState.WAITING.name()),
             Updates.unset("leaseOwner"),
             Updates.unset("leaseExpiresAt")));
   }
@@ -1241,13 +1252,13 @@ public class MongoJobStore implements JobStore {
     triggers.updateMany(
         Filters.and(
             Filters.eq("schedName", instanceName),
-            Filters.eq("state", STATE_ACQUIRED),
+            stateEq(TriggerState.ACQUIRED),
             Filters.or(
                 Filters.lte("leaseExpiresAt", BsonJobStoreCodec.instant(now)),
                 Filters.exists("leaseExpiresAt", false),
                 Filters.eq("leaseExpiresAt", null))),
         Updates.combine(
-            Updates.set("state", STATE_WAITING),
+            Updates.set("state", TriggerState.WAITING.name()),
             Updates.unset("leaseOwner"),
             Updates.unset("leaseExpiresAt")));
   }
@@ -1256,10 +1267,44 @@ public class MongoJobStore implements JobStore {
     recoverExpiredAcquisitions();
   }
 
+  /**
+   * ERROR is for unreadable trigger documents, not a restart. If the job class loads now (Spring
+   * class loader is in place, deploy mismatch is gone), put the trigger back to WAITING.
+   */
+  private void recoverErrorTriggersIfJobLoads() {
+    try {
+      withLock(
+          () -> {
+            for (Document d :
+                triggers.find(
+                    Filters.and(
+                        Filters.eq("schedName", instanceName), stateEq(TriggerState.ERROR)))) {
+              TriggerKey key = new TriggerKey(d.getString("name"), d.getString("group"));
+              try {
+                JobDetail job =
+                    retrieveJob(new JobKey(d.getString("jobName"), d.getString("jobGroup")));
+                if (job == null || job.getJobClass() == null) {
+                  continue;
+                }
+                OperableTrigger trigger = triggerFrom(d);
+                TriggerState state =
+                    pausedTriggerGroup(key.getGroup()) ? TriggerState.PAUSED : TriggerState.WAITING;
+                replaceTriggerDoc(trigger, state);
+                log.info("Reset trigger '{}' from ERROR after job class became loadable", key);
+              } catch (RuntimeException | JobPersistenceException e) {
+                log.warn("Leaving trigger '{}' in ERROR; job still cannot be loaded", key, e);
+              }
+            }
+          });
+    } catch (JobPersistenceException e) {
+      log.error("Failed recovering ERROR triggers", e);
+    }
+  }
+
   private Document nextWaiting(long batchEnd, Set<TriggerKey> skipped) {
     List<Bson> parts = new ArrayList<>();
     parts.add(Filters.eq("schedName", instanceName));
-    parts.add(Filters.eq("state", STATE_WAITING));
+    parts.add(stateEq(TriggerState.WAITING));
     parts.add(Filters.ne("nextFireTime", null));
     parts.add(
         Filters.lte("nextFireTime", BsonJobStoreCodec.instant(Instant.ofEpochMilli(batchEnd))));
@@ -1277,7 +1322,7 @@ public class MongoJobStore implements JobStore {
         .first();
   }
 
-  private void insertTrigger(OperableTrigger trigger, int state)
+  private void insertTrigger(OperableTrigger trigger, TriggerState state)
       throws ObjectAlreadyExistsException {
     Document doc = triggerDocument(trigger, state);
     try {
@@ -1291,25 +1336,37 @@ public class MongoJobStore implements JobStore {
   }
 
   private void markTriggerError(TriggerKey key) {
-    triggers.updateOne(triggerFilter(key), Updates.set("state", STATE_ERROR));
+    triggers.updateOne(triggerFilter(key), Updates.set("state", TriggerState.ERROR.name()));
   }
 
-  private void replaceTriggerDoc(OperableTrigger trigger, int state) {
+  private void replaceTriggerDoc(OperableTrigger trigger, TriggerState state) {
     triggers.replaceOne(
         triggerFilter(trigger.getKey()),
         triggerDocument(trigger, state),
         new ReplaceOptions().upsert(true));
   }
 
-  private Document triggerDocument(OperableTrigger trigger, int state) {
+  private Document triggerDocument(OperableTrigger trigger, TriggerState state) {
     Document doc = new Document("schedName", instanceName);
     BsonJobStoreCodec.putTriggerBody(doc, trigger);
-    doc.append("state", state);
-    if (state == STATE_ACQUIRED) {
+    doc.append("state", state.name());
+    if (state == TriggerState.ACQUIRED) {
       doc.append("leaseOwner", instanceId);
       doc.append("leaseExpiresAt", BsonJobStoreCodec.instant(leaseExpiry()));
     }
     return doc;
+  }
+
+  private static TriggerState storedState(Document doc) {
+    String raw = doc.getString("state");
+    if (raw == null || raw.isBlank()) {
+      return TriggerState.WAITING;
+    }
+    return TriggerState.valueOf(raw);
+  }
+
+  private static Bson stateEq(TriggerState state) {
+    return Filters.eq("state", state.name());
   }
 
   private JobDetail jobFrom(Document doc) {
@@ -1427,12 +1484,12 @@ public class MongoJobStore implements JobStore {
     col.deleteMany(andSched(groupFilter(matcher)));
   }
 
-  private static TriggerState toPublicState(int state) {
+  private static TriggerState toPublicState(TriggerState state) {
     return switch (state) {
-      case STATE_COMPLETE -> TriggerState.COMPLETE;
-      case STATE_PAUSED, STATE_PAUSED_BLOCKED -> TriggerState.PAUSED;
-      case STATE_BLOCKED -> TriggerState.BLOCKED;
-      case STATE_ERROR -> TriggerState.ERROR;
+      case COMPLETE -> TriggerState.COMPLETE;
+      case PAUSED, PAUSED_BLOCKED -> TriggerState.PAUSED;
+      case BLOCKED -> TriggerState.BLOCKED;
+      case ERROR -> TriggerState.ERROR;
       default -> TriggerState.NORMAL;
     };
   }
@@ -1443,7 +1500,7 @@ public class MongoJobStore implements JobStore {
       boolean clusterLock = clustered;
       if (clusterLock && !obtainLock()) {
         throw new JobPersistenceException(
-            "Could not obtain MongoDB cluster lock for scheduler '" + instanceName + "'");
+            LOCK_FAILURE_MESSAGE + " for scheduler '" + instanceName + "'");
       }
       try {
         op.run();
@@ -1468,8 +1525,14 @@ public class MongoJobStore implements JobStore {
     try {
       withLock(op);
     } catch (JobPersistenceException e) {
-      if (isShutdownRace(e)) {
-        log.debug("Ignoring MongoDB access after scheduler halt", e);
+      if (isShutdownRace(e) || isClusterLockFailure(e)) {
+        if (isClusterLockFailure(e)) {
+          log.warn(
+              "Could not obtain MongoDB cluster lock for scheduler '{}'; will retry later",
+              instanceName);
+        } else {
+          log.debug("Ignoring MongoDB access after scheduler halt", e);
+        }
         return;
       }
       throw new IllegalStateException(e);
@@ -1477,12 +1540,41 @@ public class MongoJobStore implements JobStore {
   }
 
   private boolean obtainLock() {
+    long deadlineNanos = System.nanoTime() + lockWait().toNanos();
+    int attempt = 0;
+    while (true) {
+      if (tryObtainLock()) {
+        return true;
+      }
+      long remainingMs = (deadlineNanos - System.nanoTime()) / 1_000_000L;
+      if (remainingMs <= 0) {
+        return false;
+      }
+      long backoffMs = Math.min(50L << Math.min(attempt, 3), 400L);
+      try {
+        Thread.sleep(Math.min(remainingMs, backoffMs));
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return false;
+      }
+      attempt++;
+    }
+  }
+
+  private Duration lockWait() {
+    if (clusterLockWait != null) {
+      return clusterLockWait;
+    }
+    return Duration.ofMillis(Math.max(clusterCheckinInterval.toMillis() * 2, 30_000));
+  }
+
+  private boolean tryObtainLock() {
     Instant now = Instant.now();
-    Instant expiry = now.plusMillis(Math.max(clusterCheckinInterval.toMillis() * 2, 30000));
+    Instant expiry = now.plusMillis(Math.max(clusterCheckinInterval.toMillis() * 2, 30_000));
     Bson canTake =
         Filters.and(
             Filters.eq("schedName", instanceName),
-            Filters.eq("lockName", "TRIGGER_ACCESS"),
+            Filters.eq("lockName", TRIGGER_ACCESS),
             Filters.or(
                 Filters.eq("owner", instanceId),
                 Filters.lte("expires", now),
@@ -1497,7 +1589,7 @@ public class MongoJobStore implements JobStore {
     try {
       locks.insertOne(
           new Document("schedName", instanceName)
-              .append("lockName", "TRIGGER_ACCESS")
+              .append("lockName", TRIGGER_ACCESS)
               .append("owner", instanceId)
               .append("expires", expiry));
       return true;
@@ -1511,6 +1603,17 @@ public class MongoJobStore implements JobStore {
             canTake,
             Updates.combine(Updates.set("owner", instanceId), Updates.set("expires", expiry)));
     return taken != null;
+  }
+
+  private static boolean isClusterLockFailure(Throwable error) {
+    for (Throwable t = error; t != null; t = t.getCause()) {
+      if (t instanceof JobPersistenceException
+          && t.getMessage() != null
+          && t.getMessage().contains(LOCK_FAILURE_MESSAGE)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static boolean isDuplicateKey(Throwable error) {
@@ -1578,7 +1681,7 @@ public class MongoJobStore implements JobStore {
     triggers.updateMany(
         Filters.and(
             Filters.eq("schedName", instanceName),
-            Filters.eq("state", STATE_ACQUIRED),
+            stateEq(TriggerState.ACQUIRED),
             Filters.eq("leaseOwner", instanceId)),
         Updates.set("leaseExpiresAt", BsonJobStoreCodec.instant(expiry)));
   }

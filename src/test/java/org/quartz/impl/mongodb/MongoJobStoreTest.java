@@ -1,5 +1,6 @@
 package org.quartz.impl.mongodb;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -204,6 +205,33 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
   }
 
   @Test
+  void schedulerStartResetsErrorTriggersWhenJobClassLoads() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("errorRecover");
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(MyJob.class).withIdentity("err-job", "g").build();
+      OperableTrigger trigger = readyTrigger("err-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      store
+          .getMongoClient()
+          .getDatabase(store.getDbName())
+          .getCollection("qrtz_triggers")
+          .updateOne(Filters.eq("name", "err-trig"), Updates.set("state", "ERROR"));
+      assertEquals(Trigger.TriggerState.ERROR, store.getTriggerState(trigger.getKey()));
+
+      store.schedulerStarted();
+      assertEquals(Trigger.TriggerState.NORMAL, store.getTriggerState(trigger.getKey()));
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0);
+      assertEquals(1, acquired.size());
+      assertEquals("err-trig", acquired.get(0).getKey().getName());
+    } finally {
+      destroyJobStore("errorRecover");
+    }
+  }
+
+  @Test
   void acquireContinuesWhenJobClassCannotBeLoaded() throws Exception {
     MongoJobStore store = (MongoJobStore) createJobStore("badPayload");
     store.initialize(new SampleSignaler());
@@ -228,7 +256,7 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
           store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 10, 0);
       assertEquals(1, acquired.size());
       assertEquals("good-trig", acquired.get(0).getKey().getName());
-      assertEquals(Trigger.TriggerState.ERROR, store.getTriggerState(badTrigger.getKey()));
+      assertEquals(Trigger.TriggerState.NORMAL, store.getTriggerState(badTrigger.getKey()));
     } finally {
       destroyJobStore("badPayload");
     }
@@ -259,6 +287,7 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
               .find(Filters.and(Filters.eq("name", "bson-trig"), Filters.eq("group", "g")))
               .first();
       assertEquals("simple", trigger.getString("type"));
+      assertEquals("WAITING", trigger.getString("state"));
       assertNull(trigger.get("payload"));
       assertEquals(MyJob.class, store.retrieveJob(job.getKey()).getJobClass());
     } finally {
@@ -309,6 +338,69 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
       }
       destroyJobStore("leaseRecover");
     }
+  }
+
+  @Test
+  void clusteredLockWaitsThenSucceedsWhenHolderReleases() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("lockWait");
+    store.setClustered(true);
+    store.setClusterLockWait(Duration.ofSeconds(2));
+    store.initialize(new SampleSignaler());
+    try {
+      holdClusterLock(store, "lockWait", Instant.now().plusSeconds(60));
+      Thread releaser =
+          new Thread(
+              () -> {
+                try {
+                  Thread.sleep(150L);
+                  holdClusterLock(store, "lockWait", Instant.now().minusSeconds(1));
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              },
+              "release-cluster-lock");
+      releaser.start();
+      assertDoesNotThrow(
+          () -> store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0));
+      releaser.join(2_000L);
+    } finally {
+      destroyJobStore("lockWait");
+    }
+  }
+
+  @Test
+  void clusteredLockTimeoutDoesNotCrashReleaseAcquiredTrigger() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("lockTimeout");
+    store.setClustered(true);
+    store.setClusterLockWait(Duration.ofMillis(200));
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(MyJob.class).withIdentity("lock-job", "g").build();
+      OperableTrigger trigger = readyTrigger("lock-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      holdClusterLock(store, "lockTimeout", Instant.now().plusSeconds(60));
+      JobPersistenceException thrown =
+          assertThrows(
+              JobPersistenceException.class,
+              () -> store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0));
+      assertTrue(thrown.getMessage().contains("Could not obtain MongoDB cluster lock"));
+      assertDoesNotThrow(() -> store.releaseAcquiredTrigger(trigger));
+    } finally {
+      destroyJobStore("lockTimeout");
+    }
+  }
+
+  private static void holdClusterLock(MongoJobStore store, String schedName, Instant expires) {
+    store
+        .getMongoClient()
+        .getDatabase(store.getDbName())
+        .getCollection("qrtz_locks")
+        .updateOne(
+            Filters.and(
+                Filters.eq("schedName", schedName), Filters.eq("lockName", "TRIGGER_ACCESS")),
+            Updates.combine(Updates.set("owner", "other-node"), Updates.set("expires", expires)),
+            new com.mongodb.client.model.UpdateOptions().upsert(true));
   }
 
   @Test
