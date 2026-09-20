@@ -608,6 +608,36 @@ public class MongoJobStoreTest extends AbstractJobStoreTest {
   }
 
   /**
+   * Halting the scheduler interrupts its thread, so the driver aborts the connection wait while the
+   * store is still taking the cluster lock. That failure must be classified as a shutdown race
+   * rather than escape unwrapped and be logged as an error by the caller.
+   */
+  @Test
+  void interruptedLockAcquisitionIsTreatedAsShutdownRace() throws Exception {
+    MongoJobStore store = (MongoJobStore) createJobStore("shutdownRace");
+    store.setClustered(true);
+    store.initialize(new SampleSignaler());
+    try {
+      Instant start = Instant.now().minusSeconds(5);
+      JobDetail job = newJob(ExclusiveJob.class).withIdentity("sr-job", "g").build();
+      OperableTrigger trigger = readyTrigger("sr-trig", "g", job, start);
+      store.storeJobAndTrigger(job, trigger);
+      List<OperableTrigger> acquired =
+          store.acquireNextTriggers(System.currentTimeMillis() + 60_000L, 1, 0);
+      assertEquals(1, acquired.size());
+
+      Thread.currentThread().interrupt();
+      try {
+        assertDoesNotThrow(() -> store.releaseAcquiredTrigger(acquired.get(0)));
+      } finally {
+        Thread.interrupted();
+      }
+    } finally {
+      destroyJobStore("shutdownRace");
+    }
+  }
+
+  /**
    * A running exclusive job has a BLOCKED trigger and no ACQUIRED one, so cluster check-in must not
    * mistake it for an orphan and strip the flag that enforces @DisallowConcurrentExecution.
    */

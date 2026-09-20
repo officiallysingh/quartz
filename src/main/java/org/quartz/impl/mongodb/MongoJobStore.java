@@ -1615,19 +1615,26 @@ public class MongoJobStore implements JobStore {
     localLock.lock();
     try {
       boolean clusterLock = clustered;
-      if (clusterLock && !enterClusterLock()) {
-        throw new JobPersistenceException(
-            LOCK_FAILURE_MESSAGE + " for scheduler '" + instanceName + "'");
+      if (clusterLock) {
+        boolean entered;
+        try {
+          entered = enterClusterLock();
+        } catch (RuntimeException e) {
+          // Interrupting the scheduler thread makes the driver abandon the connection wait, so
+          // this has to be classified like any other store failure rather than escape unwrapped.
+          throw asPersistenceException(e);
+        }
+        if (!entered) {
+          throw new JobPersistenceException(
+              LOCK_FAILURE_MESSAGE + " for scheduler '" + instanceName + "'");
+        }
       }
       try {
         op.run();
       } catch (JobPersistenceException e) {
         throw e;
       } catch (RuntimeException e) {
-        if (isShutdownRace(e)) {
-          throw new JobPersistenceException("MongoDB unavailable during scheduler shutdown", e);
-        }
-        throw new JobPersistenceException(e.getMessage(), e);
+        throw asPersistenceException(e);
       } finally {
         if (clusterLock) {
           exitClusterLock();
@@ -1636,6 +1643,13 @@ public class MongoJobStore implements JobStore {
     } finally {
       localLock.unlock();
     }
+  }
+
+  private JobPersistenceException asPersistenceException(RuntimeException e) {
+    if (isShutdownRace(e)) {
+      return new JobPersistenceException("MongoDB unavailable during scheduler shutdown", e);
+    }
+    return new JobPersistenceException(e.getMessage(), e);
   }
 
   private void withLockUnchecked(PersistedOp op) {
