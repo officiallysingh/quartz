@@ -17,9 +17,14 @@
 package org.quartz.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Map;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.quartz.MongoSchedulerSupport;
+import org.quartz.Scheduler;
+import org.quartz.spi.SchedulerPlugin;
 import org.slf4j.helpers.NOPLogger;
 
 class StdSchedulerFactoryTest {
@@ -62,5 +67,48 @@ class StdSchedulerFactoryTest {
     Properties q = StdSchedulerFactory.overrideWithSysProps(p, NOPLogger.NOP_LOGGER);
     assertEquals("boo1", q.get("nonsense1"));
     assertEquals(osName, q.get("os.name"));
+  }
+
+  @Test
+  void constructedPluginsAreInitializedStartedAndShutdown() throws Exception {
+    TrackingPlugin plugin = new TrackingPlugin();
+    StdSchedulerFactory factory = new StdSchedulerFactory();
+    factory.setSchedulerPlugins(Map.of("trackingPlugin", plugin));
+    factory.initialize(
+        MongoSchedulerSupport.schedulerProperties("StdSchedulerFactoryPluginTest", 2));
+
+    Scheduler scheduler = factory.getScheduler();
+    try {
+      assertEquals("trackingPlugin", plugin.initializedName);
+      assertEquals("StdSchedulerFactoryPluginTest", plugin.schedulerName);
+      scheduler.start();
+      assertTrue(plugin.started);
+    } finally {
+      scheduler.shutdown(true);
+    }
+    assertTrue(plugin.shutdown);
+  }
+
+  static final class TrackingPlugin implements SchedulerPlugin {
+    volatile String initializedName;
+    volatile String schedulerName;
+    volatile boolean started;
+    volatile boolean shutdown;
+
+    @Override
+    public void initialize(String name, Scheduler scheduler) throws org.quartz.SchedulerException {
+      initializedName = name;
+      schedulerName = scheduler.getSchedulerName();
+    }
+
+    @Override
+    public void start() {
+      started = true;
+    }
+
+    @Override
+    public void shutdown() {
+      shutdown = true;
+    }
   }
 }

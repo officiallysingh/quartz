@@ -13,6 +13,7 @@ import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.simpl.SimpleThreadPool;
 import org.quartz.simpl.VirtualThreadPool;
+import org.quartz.spi.SchedulerPlugin;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -45,6 +46,7 @@ public class QuartzAutoConfiguration {
       ObjectProvider<JobDetail> jobDetails,
       Map<String, Calendar> calendars,
       ObjectProvider<Trigger> triggers,
+      Map<String, SchedulerPlugin> schedulerPlugins,
       ApplicationContext applicationContext,
       Environment environment) {
 
@@ -69,6 +71,7 @@ public class QuartzAutoConfiguration {
     factoryBean.setJobDetails(jobDetails.orderedStream().toArray(JobDetail[]::new));
     factoryBean.setCalendars(calendars);
     factoryBean.setTriggers(triggers.orderedStream().toArray(Trigger[]::new));
+    factoryBean.setSchedulerPlugins(schedulerPlugins);
     customizers.orderedStream().forEach(customizer -> customizer.customize(factoryBean));
     return factoryBean;
   }

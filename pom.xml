@@ -5,16 +5,16 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.officiallysingh</groupId>
-    <artifactId>quartz-scheduler</artifactId>
+    <artifactId>spring-boot-mongodb-quartz-scheduler</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>quartz-scheduler</name>
-    <description>Quartz Job Scheduler with Spring Boot auto configuration</description>
+    <name>spring-boot-mongodb-quartz-scheduler</name>
+    <description>Quartz Job Scheduler with Spring Boot autoconfiguration and MongoDB support</description>
     <url>https://github.com/officiallysingh/quartz</url>
 
     <properties>
-        <java.version>26</java.version>
+        <java.version>21</java.version>
         <spring-boot.version>4.1.1</spring-boot.version>
 
         <slf4j.version>2.0.17</slf4j.version>

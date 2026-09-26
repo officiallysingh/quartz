@@ -16,6 +16,7 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.spi.SchedulerPlugin;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -40,6 +41,7 @@ public class QuartzSchedulerFactoryBean
   private JobDetail[] jobDetails = new JobDetail[0];
   private Trigger[] triggers = new Trigger[0];
   private Map<String, Calendar> calendars = Collections.emptyMap();
+  private Map<String, SchedulerPlugin> schedulerPlugins = Collections.emptyMap();
   @Setter private boolean autoStartup = true;
   private Duration startupDelay = Duration.ZERO;
   @Setter private boolean waitForJobsToCompleteOnShutdown = true;
@@ -64,6 +66,10 @@ public class QuartzSchedulerFactoryBean
     this.calendars = calendars != null ? calendars : Collections.emptyMap();
   }
 
+  public void setSchedulerPlugins(Map<String, SchedulerPlugin> schedulerPlugins) {
+    this.schedulerPlugins = schedulerPlugins != null ? schedulerPlugins : Collections.emptyMap();
+  }
+
   public void setStartupDelay(Duration startupDelay) {
     this.startupDelay = startupDelay != null ? startupDelay : Duration.ZERO;
   }
@@ -81,6 +87,7 @@ public class QuartzSchedulerFactoryBean
     if (applicationContext != null) {
       factory.setJobClassLoader(applicationContext.getClassLoader());
     }
+    factory.setSchedulerPlugins(schedulerPlugins);
     factory.initialize(quartzProperties);
     this.scheduler = factory.getScheduler();
     if (applicationContext != null) {

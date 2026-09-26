@@ -32,7 +32,9 @@ import java.security.AccessControlException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobListener;
@@ -167,6 +169,8 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
   private ClassLoader jobClassLoader;
 
+  private Map<String, SchedulerPlugin> schedulerPlugins = Map.of();
+
   /*
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    *
@@ -232,6 +236,18 @@ public class StdSchedulerFactory implements SchedulerFactory {
    */
   public void setJobClassLoader(ClassLoader jobClassLoader) {
     this.jobClassLoader = jobClassLoader;
+  }
+
+  /**
+   * Already-constructed plugins (for example Spring beans) to initialize with the scheduler. Merged
+   * with any {@code org.quartz.plugin.*} property plugins; a bean with the same name replaces the
+   * property-constructed instance.
+   */
+  public void setSchedulerPlugins(Map<String, SchedulerPlugin> schedulerPlugins) {
+    this.schedulerPlugins =
+        schedulerPlugins == null || schedulerPlugins.isEmpty()
+            ? Map.of()
+            : Map.copyOf(schedulerPlugins);
   }
 
   /**
@@ -602,6 +618,14 @@ public class StdSchedulerFactory implements SchedulerFactory {
 
       plugins[i] = plugin;
     }
+
+    LinkedHashMap<String, SchedulerPlugin> mergedPlugins = new LinkedHashMap<>();
+    for (int i = 0; i < pluginNames.length; i++) {
+      mergedPlugins.put(pluginNames[i], plugins[i]);
+    }
+    mergedPlugins.putAll(this.schedulerPlugins);
+    pluginNames = mergedPlugins.keySet().toArray(String[]::new);
+    plugins = mergedPlugins.values().toArray(SchedulerPlugin[]::new);
 
     // Set up any JobListeners
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
